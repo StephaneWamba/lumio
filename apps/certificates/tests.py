@@ -278,7 +278,7 @@ class EarnedCertificateTests(TestCase):
         self.client.force_authenticate(user=self.student)
         response = self.client.get(reverse("earned-certificate-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_instructor_sees_their_students_certificates(self):
         """Test instructor sees certificates for their students"""
@@ -291,7 +291,7 @@ class EarnedCertificateTests(TestCase):
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("earned-certificate-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_student_cannot_see_others_certificates(self):
         """Test student cannot see other student's certificates"""

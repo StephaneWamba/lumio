@@ -175,7 +175,7 @@ class QuizAttemptTests(TestCase):
             order=99,
             is_published=True,
         )
-        LessonProgress.objects.create(
+        new_lesson_progress = LessonProgress.objects.create(
             enrollment=self.enrollment,
             lesson=new_lesson,
         )
@@ -187,7 +187,7 @@ class QuizAttemptTests(TestCase):
         )
         # Create and submit first attempt
         attempt = QuizAttempt.objects.create(
-            lesson_progress=self.lesson_progress,
+            lesson_progress=new_lesson_progress,
             quiz=quiz,
             attempt_number=1,
             status=QuizAttempt.ATTEMPT_STATUS_GRADED,

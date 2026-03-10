@@ -248,7 +248,7 @@ class LessonProgressTests(TestCase):
         self.client.force_authenticate(user=self.student)
         response = self.client.get(reverse("enrollment-progress", args=[self.enrollment.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data), 1)
 
 
 class ProgressEventTests(TestCase):
