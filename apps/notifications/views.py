@@ -17,6 +17,7 @@ from .serializers import (
     NotificationPreferenceSerializer,
     NotificationListSerializer,
     NotificationDetailSerializer,
+    NotificationLogSerializer,
 )
 from apps.users.permissions import IsInstructor, IsAdmin
 
