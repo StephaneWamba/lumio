@@ -13,7 +13,7 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY pyproject.toml uv.lock* ./
-RUN uv pip install --python /opt/venv/bin/python -e . --no-cache --default-timeout=900
+RUN uv pip install --python /opt/venv/bin/python -e . --no-cache
 
 # Runtime stage
 FROM python:3.12-slim
