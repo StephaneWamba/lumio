@@ -175,7 +175,7 @@ class QuizAttempt(models.Model):
     lesson_progress = models.ForeignKey(
         LessonProgress,
         on_delete=models.CASCADE,
-        related_name="quiz_attempts",
+        related_name="attempt_records",
     )
     quiz = models.ForeignKey(
         Quiz,

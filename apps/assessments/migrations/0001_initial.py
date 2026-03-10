@@ -89,7 +89,7 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('quiz', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attempts', to='assessments.quiz')),
-                ('lesson_progress', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='quiz_attempts', to='enrollments.lessonprogress')),
+                ('lesson_progress', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attempt_records', to='enrollments.lessonprogress')),
             ],
             options={
                 'verbose_name': 'Quiz Attempt',

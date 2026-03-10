@@ -58,14 +58,14 @@ class CourseAnalyticsTests(TestCase):
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("course-analytics-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_student_cannot_see_analytics(self):
         """Test student cannot see analytics"""
         self.client.force_authenticate(user=self.student)
         response = self.client.get(reverse("course-analytics-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(response.data["count"], 0)
 
     def test_retrieve_analytics(self):
         """Test retrieving analytics detail"""
@@ -127,7 +127,7 @@ class LessonAnalyticsTests(TestCase):
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("lesson-analytics-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_retrieve_lesson_analytics(self):
         """Test retrieving lesson analytics detail"""
@@ -180,7 +180,7 @@ class QuizAnalyticsTests(TestCase):
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("quiz-analytics-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_retrieve_quiz_analytics(self):
         """Test retrieving quiz analytics detail"""
@@ -241,7 +241,7 @@ class StudentProgressSnapshotTests(TestCase):
         self.client.force_authenticate(user=self.student)
         response = self.client.get(reverse("progress-snapshot-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_student_cannot_see_others_snapshots(self):
         """Test student cannot see other student's snapshots"""
@@ -261,7 +261,7 @@ class StudentProgressSnapshotTests(TestCase):
         self.client.force_authenticate(user=other_student)
         response = self.client.get(reverse("progress-snapshot-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(response.data["count"], 0)
 
     def test_instructor_sees_student_snapshots(self):
         """Test instructor sees their students' snapshots"""
@@ -275,7 +275,7 @@ class StudentProgressSnapshotTests(TestCase):
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("progress-snapshot-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_unique_snapshot_per_day(self):
         """Test only one snapshot per student per day"""
@@ -340,7 +340,7 @@ class EngagementMetricTests(TestCase):
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("engagement-metric-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_top_engaged_students(self):
         """Test getting top engaged students"""
