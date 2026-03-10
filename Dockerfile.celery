@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock* ./
-COPY lumio ./lumio
+COPY apps ./apps
+COPY config ./config
 COPY manage.py ./
 
 # Install dependencies with uv using system Python

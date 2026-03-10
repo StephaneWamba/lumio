@@ -16,7 +16,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy dependency files and source code
 COPY pyproject.toml uv.lock* ./
-COPY lumio ./lumio
+COPY apps ./apps
+COPY config ./config
 COPY manage.py ./
 
 # Install dependencies with uv
