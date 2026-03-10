@@ -39,7 +39,7 @@ class NotificationPreferenceViewSet(viewsets.ViewSet):
         """Get or update user's notification preferences"""
         try:
             preferences = request.user.notification_preferences
-        except NotificationPreference.Do_not_exist:
+        except NotificationPreference.DoesNotExist:
             # Create default preferences if they don't exist
             preferences = NotificationPreference.objects.create(user=request.user)
 
