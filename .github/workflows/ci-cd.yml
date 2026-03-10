@@ -13,7 +13,7 @@ on:
 
 env:
   AWS_REGION: eu-central-1
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-central-1.amazonaws.com
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
@@ -194,10 +194,7 @@ jobs:
                                        --services lumio-app \
                                        --region ${{ env.AWS_REGION }}
 
-      - name: Notify Slack
+      - name: Deployment summary
         if: always()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: 'Lumio production deployment ${{ job.status }} - ${{ github.sha }}'
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          echo "Deployment ${{ job.status }} for commit ${{ github.sha }}"
