@@ -13,6 +13,7 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY pyproject.toml uv.lock* ./
+ENV UV_CONCURRENT_DOWNLOADS=4
 RUN uv pip install --python /opt/venv/bin/python -e . --no-cache
 
 # Runtime stage with FFmpeg

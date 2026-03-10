@@ -17,7 +17,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copy dependency files
 COPY pyproject.toml uv.lock* ./
 
-# Install dependencies with uv (parallel resolution, much faster)
+# Install dependencies with uv (reduce concurrent downloads to prevent timeout)
+ENV UV_CONCURRENT_DOWNLOADS=4
 RUN uv pip install --python /opt/venv/bin/python -e . --no-cache
 
 # Runtime stage - minimal image
