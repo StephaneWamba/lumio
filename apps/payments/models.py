@@ -24,7 +24,7 @@ class Price(models.Model):
     course = models.OneToOneField(
         Course,
         on_delete=models.CASCADE,
-        related_name="price",
+        related_name="pricing",
     )
     amount = models.DecimalField(
         max_digits=10,

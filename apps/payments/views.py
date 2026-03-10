@@ -91,14 +91,14 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         course = get_object_or_404(Course, id=course_id)
 
         # Check if course has pricing
-        if not hasattr(course, "price"):
+        if not hasattr(course, "pricing"):
             return Response(
                 {"detail": "Course does not have pricing configured"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Create payment
-        price = course.price
+        price = course.pricing
         amount = price.discounted_amount if price.is_discount_active else price.amount
 
         transaction_id = f"TXN-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"

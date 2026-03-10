@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('course', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='price', to='courses.course')),
+                ('course', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='pricing', to='courses.course')),
             ],
             options={
                 'verbose_name': 'Price',
