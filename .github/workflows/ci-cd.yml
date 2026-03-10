@@ -119,29 +119,46 @@ jobs:
             aws ecr create-repository --repository-name $repo --region ${{ env.AWS_REGION }} --image-tag-mutability MUTABLE
           done
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-options: network=host
+
       - name: Build and push Django app image
-        run: |
-          docker build -t ${{ env.ECR_REGISTRY }}/lumio-app:${{ env.IMAGE_TAG }} \
-                       -t ${{ env.ECR_REGISTRY }}/lumio-app:latest \
-                       -f Dockerfile .
-          docker push ${{ env.ECR_REGISTRY }}/lumio-app:${{ env.IMAGE_TAG }}
-          docker push ${{ env.ECR_REGISTRY }}/lumio-app:latest
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/lumio-app:${{ env.IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/lumio-app:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push Celery worker image
-        run: |
-          docker build -t ${{ env.ECR_REGISTRY }}/lumio-celery:${{ env.IMAGE_TAG }} \
-                       -t ${{ env.ECR_REGISTRY }}/lumio-celery:latest \
-                       -f Dockerfile.celery .
-          docker push ${{ env.ECR_REGISTRY }}/lumio-celery:${{ env.IMAGE_TAG }}
-          docker push ${{ env.ECR_REGISTRY }}/lumio-celery:latest
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.celery
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/lumio-celery:${{ env.IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/lumio-celery:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push FFmpeg worker image
-        run: |
-          docker build -t ${{ env.ECR_REGISTRY }}/lumio-ffmpeg:${{ env.IMAGE_TAG }} \
-                       -t ${{ env.ECR_REGISTRY }}/lumio-ffmpeg:latest \
-                       -f Dockerfile.ffmpeg .
-          docker push ${{ env.ECR_REGISTRY }}/lumio-ffmpeg:${{ env.IMAGE_TAG }}
-          docker push ${{ env.ECR_REGISTRY }}/lumio-ffmpeg:latest
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.ffmpeg
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/lumio-ffmpeg:${{ env.IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/lumio-ffmpeg:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     name: Deploy to Production

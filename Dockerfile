@@ -18,7 +18,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY pyproject.toml uv.lock* ./
 
 # Install dependencies with uv (parallel resolution, much faster)
-RUN uv pip install --python /opt/venv/bin/python -e . --no-cache
+RUN uv pip install --python /opt/venv/bin/python -e . --no-cache --default-timeout=900
 
 # Runtime stage - minimal image
 FROM python:3.12-slim
