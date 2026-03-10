@@ -37,6 +37,7 @@ THIRD_PARTY_APPS = [
     "drf_spectacular",
     "guardian",
     "social_django",
+    "django_prometheus",
 ]
 
 LOCAL_APPS = [
@@ -56,14 +57,18 @@ LOCAL_APPS = [
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "config.middleware.SecurityHeadersMiddleware",
+    "config.middleware.RequestLoggingMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -173,6 +178,13 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "user": "1000/hour",
+        # Sensitive endpoints — see apps/users/throttles.py
+        "auth_login": "5/min",
+        "auth_register": "10/hour",
+        "password_reset": "3/hour",
+        "token_refresh": "30/hour",
+        "presigned_url": "20/min",
+        "quiz_submit": "60/hour",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }

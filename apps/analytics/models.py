@@ -2,7 +2,7 @@
 
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
-from apps.courses.models import Course, Section, Lesson
+from apps.courses.models import Course, Lesson
 from apps.users.models import User
 from apps.enrollments.models import Enrollment
 from apps.assessments.models import Quiz

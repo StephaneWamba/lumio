@@ -74,3 +74,4 @@ build/
 .env*.local
 *.bak
 tmp/
+.env.tokens

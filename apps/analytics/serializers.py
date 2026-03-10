@@ -8,9 +8,7 @@ from .models import (
     StudentProgressSnapshot,
     EngagementMetric,
 )
-from apps.courses.serializers import CourseListSerializer, LessonSerializer
-from apps.assessments.serializers import QuizDetailSerializer
-from apps.enrollments.serializers import EnrollmentSerializer
+from apps.courses.serializers import CourseListSerializer
 
 
 class CourseAnalyticsSerializer(serializers.ModelSerializer):

@@ -18,7 +18,6 @@ from .serializers import (
     InvoiceDetailSerializer,
 )
 from apps.courses.models import Course
-from apps.users.permissions import IsInstructor, IsAdmin
 
 
 class PriceViewSet(viewsets.ModelViewSet):

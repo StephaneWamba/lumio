@@ -275,7 +275,7 @@ class EarnedCertificateTests(TestCase):
 
     def test_instructor_sees_their_students_certificates(self):
         """Test instructor sees certificates for their students"""
-        certificate = EarnedCertificate.objects.create(
+        EarnedCertificate.objects.create(
             enrollment=self.enrollment,
             template=self.template,
             certificate_number="CERT-TEST-001",
@@ -341,7 +341,7 @@ class EarnedCertificateTests(TestCase):
 
     def test_certificate_number_unique(self):
         """Test certificate numbers are unique"""
-        cert1 = EarnedCertificate.objects.create(
+        EarnedCertificate.objects.create(
             enrollment=self.enrollment,
             template=self.template,
             certificate_number="CERT-001",

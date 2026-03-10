@@ -2,8 +2,8 @@
 
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from django_prometheus import exports as prometheus_exports
 
 
 # Health check endpoint
@@ -18,6 +18,8 @@ def health_check(request):
 urlpatterns = [
     # Health check (for ECS ALB)
     path("health/", health_check, name="health_check"),
+    # Prometheus metrics (scraped by Grafana — not public)
+    path("metrics/", prometheus_exports.ExportToDjangoView, name="prometheus-metrics"),
     # Admin
     path("admin/", admin.site.urls),
     # API documentation

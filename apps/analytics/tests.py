@@ -5,13 +5,11 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 from decimal import Decimal
-from datetime import timedelta
-from django.utils import timezone
 
 from apps.users.models import User
 from apps.courses.models import Course, Section, Lesson
-from apps.enrollments.models import Enrollment, LessonProgress
-from apps.assessments.models import Quiz, Question, QuestionOption, QuizAttempt
+from apps.enrollments.models import Enrollment
+from apps.assessments.models import Quiz
 from .models import (
     CourseAnalytics,
     LessonAnalytics,

@@ -11,6 +11,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import User, InstructorProfile, CorporateManagerProfile
+from .throttles import (
+    AuthLoginThrottle,
+    AuthRegisterThrottle,
+    PasswordResetThrottle,
+    TokenRefreshThrottle,
+)
 from .serializers import (
     UserSerializer,
     UserDetailSerializer,
@@ -33,12 +39,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """Custom JWT token endpoint with additional user data"""
 
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [AuthLoginThrottle]
 
 
 class RegisterView(APIView):
     """User registration endpoint"""
 
     permission_classes = [AllowAny]
+    throttle_classes = [AuthRegisterThrottle]
 
     def post(self, request):
         """Register new user"""
@@ -69,6 +77,7 @@ class LoginView(APIView):
     """User login endpoint"""
 
     permission_classes = [AllowAny]
+    throttle_classes = [AuthLoginThrottle]
 
     def post(self, request):
         """Login user and return tokens"""

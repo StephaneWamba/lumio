@@ -53,6 +53,11 @@ dependencies = [
 
     # Monitoring
     "prometheus-client",
+    "django-prometheus",
+
+    # Security & Rate-limiting
+    "django-ratelimit",
+    "django-redis",
 ]
 
 [project.optional-dependencies]
@@ -129,3 +134,13 @@ django_settings_module = "config.settings.test"
 [tool.isort]
 profile = "black"
 line_length = 100
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = [
+    "E203",  # whitespace before ':' — conflicts with Black slice formatting
+    "W503",  # line break before binary operator — conflicts with Black
+]
+per-file-ignores = [
+    "*/migrations/*.py: E501",  # auto-generated migrations may have long lines
+]

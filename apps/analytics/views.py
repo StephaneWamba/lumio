@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Avg, Q
+from django.db.models import Avg
 from django.utils import timezone
 from datetime import timedelta
 
@@ -22,7 +22,6 @@ from .serializers import (
     StudentProgressSnapshotSerializer,
     EngagementMetricSerializer,
 )
-from apps.users.permissions import IsInstructor, IsAdmin
 from apps.courses.models import Course
 from apps.enrollments.models import Enrollment, LessonProgress
 
@@ -167,7 +166,7 @@ class StudentProgressSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
             self.permission_denied(request)
 
         # Get daily snapshots for past 30 days
-        from django.db.models import Count, F
+        from django.db.models import Count
 
         thirty_days_ago = timezone.now().date() - timedelta(days=30)
         snapshots = (

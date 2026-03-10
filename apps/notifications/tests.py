@@ -4,15 +4,8 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from datetime import timedelta
-
 from apps.users.models import User
-from .models import (
-    NotificationTemplate,
-    NotificationPreference,
-    Notification,
-    NotificationLog,
-)
+from .models import NotificationTemplate, Notification
 
 
 class NotificationTemplateTests(TestCase):

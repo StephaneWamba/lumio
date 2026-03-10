@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from apps.users.models import User
 from apps.courses.models import Course
-from .models import Price, Payment, Invoice, PaymentLog
+from .models import Price, Payment, Invoice
 
 
 class PriceTests(TestCase):

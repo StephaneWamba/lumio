@@ -2,13 +2,10 @@
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.utils import timezone
-from datetime import timedelta
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 
 from apps.courses.models import Course
-from apps.users.models import User
 from .models import SearchIndex, SearchQuery
 from .cache import SearchCache
 
