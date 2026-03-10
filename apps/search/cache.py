@@ -71,9 +71,10 @@ class SearchCache:
     @staticmethod
     def invalidate_search_cache():
         """Invalidate all search-related caches"""
-        # Note: In production, use more granular invalidation
-        # This is a simplified approach
-        cache.delete_pattern("search:*")
+        if hasattr(cache, "delete_pattern"):
+            cache.delete_pattern("search:*")
+        else:
+            cache.clear()
 
     @staticmethod
     def get_course_analytics_cache(course_id: int):

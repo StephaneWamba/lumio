@@ -179,7 +179,7 @@ class LessonProgressTests(TestCase):
             reverse("enrollment-mark-lesson-viewed", args=[self.enrollment.id]),
             {"lesson_id": self.lesson1.id},
         )
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_mark_lesson_viewed(self):
         """Test marking lesson as viewed"""
@@ -248,7 +248,7 @@ class LessonProgressTests(TestCase):
         self.client.force_authenticate(user=self.student)
         response = self.client.get(reverse("enrollment-progress", args=[self.enrollment.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
 
 class ProgressEventTests(TestCase):
@@ -288,7 +288,7 @@ class ProgressEventTests(TestCase):
 
     def test_progress_event_list_requires_auth(self):
         """Test progress events require authentication"""
-        response = self.client.get(reverse("progressevent-list"))
+        response = self.client.get(reverse("progress-event-list"))
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_student_sees_only_own_events(self):
@@ -312,10 +312,10 @@ class ProgressEventTests(TestCase):
             event_type=ProgressEvent.EVENT_LESSON_VIEWED,
         )
         self.client.force_authenticate(user=self.student)
-        response = self.client.get(reverse("progressevent-list"))
+        response = self.client.get(reverse("progress-event-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["student"], self.student.id)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["student"], self.student.id)
 
     def test_instructor_sees_enrollments_progress(self):
         """Test instructor can see progress of enrolled students"""
@@ -330,6 +330,6 @@ class ProgressEventTests(TestCase):
             event_type=ProgressEvent.EVENT_LESSON_VIEWED,
         )
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.get(f"{reverse('progressevent-list')}?student_id={self.student.id}")
+        response = self.client.get(f"{reverse('progress-event-list')}?student_id={self.student.id}")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)

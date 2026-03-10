@@ -52,6 +52,7 @@ class SectionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "course",
             "created_at",
             "updated_at",
         ]
@@ -118,13 +119,18 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 class CourseCreateUpdateSerializer(serializers.ModelSerializer):
     """Course create/update serializer"""
 
+    instructor = UserSerializer(read_only=True)
+
     class Meta:
         model = Course
         fields = [
+            "id",
             "title",
             "description",
             "thumbnail_url",
             "price",
             "duration_minutes",
             "is_published",
+            "instructor",
         ]
+        read_only_fields = ["id", "instructor"]

@@ -77,7 +77,7 @@ class PriceTests(TestCase):
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("price-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_cannot_create_price_for_others_course(self):
         """Test cannot create price for other's course"""
@@ -161,7 +161,7 @@ class PaymentTests(TestCase):
         self.client.force_authenticate(user=self.student)
         response = self.client.get(reverse("payment-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_initiate_payment(self):
         """Test initiating a payment"""
@@ -268,7 +268,7 @@ class PaymentTests(TestCase):
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("payment-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
 
 class InvoiceTests(TestCase):
@@ -319,7 +319,7 @@ class InvoiceTests(TestCase):
         self.client.force_authenticate(user=self.student)
         response = self.client.get(reverse("invoice-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_invoice_creation_on_payment_complete(self):
         """Test invoice is created when payment is completed"""

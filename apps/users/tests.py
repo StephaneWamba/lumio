@@ -30,7 +30,7 @@ class UserAuthenticationTests(TestCase):
         """Test user can register"""
         response = self.client.post(self.register_url, self.user_data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(User.objects.count(), 1)
+        self.assertEqual(User.objects.filter(email=self.user_data["email"]).count(), 1)
         self.assertEqual(User.objects.first().email, self.user_data["email"])
 
     def test_user_registration_password_mismatch(self):
@@ -39,7 +39,7 @@ class UserAuthenticationTests(TestCase):
         data["password2"] = "DifferentPassword123!"
         response = self.client.post(self.register_url, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(User.objects.count(), 0)
+        self.assertEqual(User.objects.filter(email=data["email"]).count(), 0)
 
     def test_user_registration_weak_password(self):
         """Test registration fails with weak password"""
@@ -170,7 +170,7 @@ class UserProfileTests(TestCase):
         """Test updating user profile"""
         new_name = "Updated Name"
         response = self.client.put(
-            reverse("user-update_profile"),
+            reverse("user-update-profile"),
             {"name": new_name},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -181,7 +181,7 @@ class UserProfileTests(TestCase):
         """Test changing password"""
         new_password = "NewPassword123!"
         response = self.client.post(
-            reverse("user-change_password"),
+            reverse("user-change-password"),
             {
                 "old_password": "TestPassword123!",
                 "new_password": new_password,
@@ -195,7 +195,7 @@ class UserProfileTests(TestCase):
     def test_change_password_wrong_old(self):
         """Test changing password with wrong old password"""
         response = self.client.post(
-            reverse("user-change_password"),
+            reverse("user-change-password"),
             {
                 "old_password": "WrongPassword123!",
                 "new_password": "NewPassword123!",
@@ -225,7 +225,7 @@ class InstructorProfileTests(TestCase):
 
     def test_get_instructor_profile(self):
         """Test getting instructor profile"""
-        response = self.client.get(reverse("instructor-profile-my_profile"))
+        response = self.client.get(reverse("instructor-profile-my-profile"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["user"]["email"], self.user.email)
 

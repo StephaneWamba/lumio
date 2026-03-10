@@ -2,6 +2,7 @@
 
 from rest_framework import viewsets, status, filters as drf_filters
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db.models import Count, Avg, Q
@@ -68,9 +69,9 @@ class SearchViewSet(viewsets.ReadOnlyModelViewSet):
             SearchCache.set_search_results(search_query, response.data, filters_dict)
 
             # Update result count in database
-            SearchQuery.objects.filter(query=search_query).latest("timestamp").update(
-                result_count=result_count
-            )
+            latest = SearchQuery.objects.filter(query=search_query).latest("timestamp")
+            latest.result_count = result_count
+            latest.save()
 
         return response
 
@@ -147,7 +148,6 @@ class SearchViewSet(viewsets.ReadOnlyModelViewSet):
             .values("query")
             .annotate(
                 count=Count("id"),
-                latest_timestamp=timezone.now(),
             )
             .order_by("-count")[:limit]
         )
@@ -196,7 +196,7 @@ class SearchQueryViewSet(viewsets.ReadOnlyModelViewSet):
         """Only admins can see all searches"""
         if self.request.user.is_staff or self.request.user.role == "admin":
             return SearchQuery.objects.all()
-        return SearchQuery.objects.none()
+        raise PermissionDenied("Admin access required")
 
     @action(detail=False, methods=["get"])
     def analytics(self, request):

@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from datetime import timedelta
 
-from apps.users.models import User
+from apps.users.models import User, InstructorProfile
 from apps.courses.models import Course, Section, Lesson
 from apps.enrollments.models import Enrollment, LessonProgress
 from .models import CertificateTemplate, CertificateAward, EarnedCertificate
@@ -65,7 +65,7 @@ class CertificateTemplateTests(TestCase):
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("certificate-template-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_cannot_create_template_for_others_course(self):
         """Test instructor cannot create template for other's course"""
@@ -103,6 +103,7 @@ class CertificateAwardTests(TestCase):
             password="TestPassword123!",
             role=User.ROLE_INSTRUCTOR,
         )
+        InstructorProfile.objects.create(user=self.instructor, is_approved=True)
         self.course = Course.objects.create(
             instructor=self.instructor,
             title="Test Course",
@@ -248,8 +249,14 @@ class EarnedCertificateTests(TestCase):
 
     def test_cannot_issue_ineligible_student(self):
         """Test cannot issue certificate to ineligible student"""
+        ineligible_student = User.objects.create_user(
+            email="ineligible@example.com",
+            name="Ineligible Student",
+            password="TestPassword123!",
+            role=User.ROLE_STUDENT,
+        )
         incomplete_enrollment = Enrollment.objects.create(
-            student=self.student,
+            student=ineligible_student,
             course=self.course,
             progress_percentage=50,
         )
@@ -303,7 +310,7 @@ class EarnedCertificateTests(TestCase):
         self.client.force_authenticate(user=other_student)
         response = self.client.get(reverse("earned-certificate-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(response.data["count"], 0)
 
     def test_revoke_certificate(self):
         """Test revoking a certificate"""

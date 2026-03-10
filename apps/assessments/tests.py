@@ -167,8 +167,20 @@ class QuizAttemptTests(TestCase):
 
     def test_max_attempts_limit(self):
         """Test max attempts limit"""
+        # Create a new lesson without a quiz for this test
+        new_lesson = Lesson.objects.create(
+            section=self.section,
+            title="Lesson For Max Attempts",
+            content="Content",
+            order=99,
+            is_published=True,
+        )
+        LessonProgress.objects.create(
+            enrollment=self.enrollment,
+            lesson=new_lesson,
+        )
         quiz = Quiz.objects.create(
-            lesson=self.lesson,
+            lesson=new_lesson,
             title="Limited Quiz",
             max_attempts=1,
             allow_retake=False,
@@ -204,6 +216,7 @@ class QuizAttemptTests(TestCase):
                     }
                 ]
             },
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -230,6 +243,7 @@ class QuizAttemptTests(TestCase):
                     }
                 ]
             },
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -252,6 +266,7 @@ class QuizAttemptTests(TestCase):
                     }
                 ]
             },
+            format="json",
         )
 
         self.lesson_progress.refresh_from_db()
@@ -276,6 +291,7 @@ class QuizAttemptTests(TestCase):
                     }
                 ]
             },
+            format="json",
         )
 
         # Try to submit again
@@ -289,5 +305,6 @@ class QuizAttemptTests(TestCase):
                     }
                 ]
             },
+            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

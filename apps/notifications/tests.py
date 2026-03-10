@@ -37,7 +37,7 @@ class NotificationTemplateTests(TestCase):
         self.client.force_authenticate(user=self.user)
         response = self.client.get(reverse("notification-template-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_filter_templates_by_trigger(self):
         """Test filtering templates by trigger"""
@@ -61,7 +61,7 @@ class NotificationTemplateTests(TestCase):
             {"trigger": NotificationTemplate.TRIGGER_COURSE_PUBLISHED},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
 
 class NotificationPreferenceTests(TestCase):

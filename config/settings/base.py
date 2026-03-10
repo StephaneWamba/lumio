@@ -4,6 +4,7 @@ Environment-specific overrides in staging.py and production.py
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 from decouple import config, Csv
 
@@ -191,8 +192,8 @@ REST_FRAMEWORK = {
 
 # Simple JWT
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": config("JWT_ACCESS_LIFETIME", default=900, cast=int),  # 15 min
-    "REFRESH_TOKEN_LIFETIME": config("JWT_REFRESH_LIFETIME", default=604800, cast=int),  # 7 days
+    "ACCESS_TOKEN_LIFETIME": timedelta(seconds=config("JWT_ACCESS_LIFETIME", default=900, cast=int)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(seconds=config("JWT_REFRESH_LIFETIME", default=604800, cast=int)),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",

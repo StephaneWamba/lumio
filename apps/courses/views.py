@@ -2,8 +2,9 @@
 
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 
@@ -55,11 +56,8 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Set instructor to current user"""
-        if self.request.user.role != User.ROLE_INSTRUCTOR:
-            return Response(
-                {"error": "Only instructors can create courses"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        if self.request.user.is_anonymous or self.request.user.role != User.ROLE_INSTRUCTOR:
+            raise PermissionDenied("Only instructors can create courses")
         serializer.save(instructor=self.request.user)
         logger.info(
             "course_created",
@@ -110,7 +108,7 @@ class SectionViewSet(viewsets.ModelViewSet):
     """Section CRUD"""
 
     serializer_class = SectionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         """Filter by course"""
@@ -124,10 +122,7 @@ class SectionViewSet(viewsets.ModelViewSet):
         course_id = self.kwargs.get("course_id")
         course = get_object_or_404(Course, id=course_id)
         if course.instructor != self.request.user:
-            return Response(
-                {"error": "You can only create sections in your own courses"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            raise PermissionDenied("You can only create sections in your own courses")
         serializer.save(course=course)
         logger.info("section_created", section_id=serializer.instance.id)
 
@@ -146,7 +141,7 @@ class LessonViewSet(viewsets.ModelViewSet):
     """Lesson CRUD"""
 
     serializer_class = LessonSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         """Filter by section"""
@@ -160,10 +155,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         section_id = self.kwargs.get("section_id")
         section = get_object_or_404(Section, id=section_id)
         if section.course.instructor != self.request.user:
-            return Response(
-                {"error": "You can only create lessons in your own courses"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            raise PermissionDenied("You can only create lessons in your own courses")
         serializer.save(section=section)
         logger.info("lesson_created", lesson_id=serializer.instance.id)
 
