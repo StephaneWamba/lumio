@@ -21,7 +21,11 @@ COPY config ./config
 COPY manage.py ./
 
 # Install dependencies with uv
-# --system avoids virtualenv overhead (Docker is already isolated)
+# Fix HTTP/2 deadlock in GitHub Actions + BuildKit (not a Django/uv issue)
+ENV UV_HTTP_MULTIPLEXING=false
+ENV UV_CONCURRENT_DOWNLOADS=4
+ENV UV_LINK_MODE=copy
+
 RUN uv pip install --system -e . --no-cache
 
 # Runtime stage - minimal image

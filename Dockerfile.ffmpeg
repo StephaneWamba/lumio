@@ -17,7 +17,11 @@ COPY apps ./apps
 COPY config ./config
 COPY manage.py ./
 
-# Install dependencies with uv
+# Fix HTTP/2 deadlock in GitHub Actions + BuildKit
+ENV UV_HTTP_MULTIPLEXING=false
+ENV UV_CONCURRENT_DOWNLOADS=4
+ENV UV_LINK_MODE=copy
+
 RUN uv pip install --python /opt/venv/bin/python -e . --no-cache
 
 # Runtime stage with FFmpeg
