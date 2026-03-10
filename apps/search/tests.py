@@ -27,7 +27,7 @@ class SearchIndexModelTests(TestCase):
             title="Django Fundamentals",
             description="Learn Django basics",
             instructor=self.user,
-            status="draft",
+            is_published=False,
         )
 
     def test_create_search_index(self):
@@ -222,28 +222,28 @@ class SearchAPITests(APITestCase):
 
     def test_search_list(self):
         """Test listing search results"""
-        response = self.client.get("/api/search/")
+        response = self.client.get("/api/v1/search/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(response.data["results"]), 5)
 
     def test_search_with_query_param(self):
         """Test searching with query parameter"""
-        response = self.client.get("/api/search/?q=Course")
+        response = self.client.get("/api/v1/search/?q=Course")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_search_filter_by_category(self):
         """Test filtering by category"""
-        response = self.client.get("/api/search/?category=Web%20Development")
+        response = self.client.get("/api/v1/search/?category=Web%20Development")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_search_filter_by_difficulty(self):
         """Test filtering by difficulty"""
-        response = self.client.get("/api/search/?difficulty=beginner")
+        response = self.client.get("/api/v1/search/?difficulty=beginner")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_search_facets_endpoint(self):
         """Test facets endpoint"""
-        response = self.client.get("/api/search/facets/")
+        response = self.client.get("/api/v1/search/facets/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("categories", response.data)
         self.assertIn("difficulties", response.data)
@@ -251,7 +251,7 @@ class SearchAPITests(APITestCase):
 
     def test_search_facets_by_content_type(self):
         """Test facets for specific content type"""
-        response = self.client.get("/api/search/facets/?content_type=course")
+        response = self.client.get("/api/v1/search/facets/?content_type=course")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_search_trending_endpoint(self):
@@ -268,38 +268,38 @@ class SearchAPITests(APITestCase):
                 result_count=80,
             )
 
-        response = self.client.get("/api/search/trending/")
+        response = self.client.get("/api/v1/search/trending/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreater(len(response.data), 0)
 
     def test_search_suggestions_endpoint(self):
         """Test suggestions endpoint"""
-        response = self.client.get("/api/search/suggestions/?q=Cour")
+        response = self.client.get("/api/v1/search/suggestions/?q=Cour")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
 
     def test_search_suggestions_min_length(self):
         """Test suggestions with short query"""
-        response = self.client.get("/api/search/suggestions/?q=a")
+        response = self.client.get("/api/v1/search/suggestions/?q=a")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
 
     def test_search_query_tracking(self):
         """Test that search queries are tracked"""
         initial_count = SearchQuery.objects.count()
-        self.client.get("/api/search/?q=django")
+        self.client.get("/api/v1/search/?q=django")
         final_count = SearchQuery.objects.count()
         self.assertGreater(final_count, initial_count)
 
     def test_search_pagination(self):
         """Test search result pagination"""
-        response = self.client.get("/api/search/?page=1")
+        response = self.client.get("/api/v1/search/?page=1")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("results", response.data)
 
     def test_search_ordering(self):
         """Test search result ordering"""
-        response = self.client.get("/api/search/?ordering=-rating")
+        response = self.client.get("/api/v1/search/?ordering=-rating")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_unpublished_content_not_searchable(self):
@@ -311,7 +311,7 @@ class SearchAPITests(APITestCase):
             description="Should not appear",
             is_published=False,
         )
-        response = self.client.get("/api/search/?q=Unpublished")
+        response = self.client.get("/api/v1/search/?q=Unpublished")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should not return unpublished content
         for result in response.data.get("results", []):
@@ -338,13 +338,13 @@ class SearchQueryAnalyticsTests(APITestCase):
     def test_search_queries_admin_access(self):
         """Test admin can access search queries"""
         self.client.force_authenticate(user=self.admin_user)
-        response = self.client.get("/api/search/queries/")
+        response = self.client.get("/api/v1/search/queries/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_search_queries_normal_user_denied(self):
         """Test normal users cannot access search queries"""
         self.client.force_authenticate(user=self.normal_user)
-        response = self.client.get("/api/search/queries/")
+        response = self.client.get("/api/v1/search/queries/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_search_analytics_endpoint(self):
@@ -357,7 +357,7 @@ class SearchQueryAnalyticsTests(APITestCase):
             )
 
         self.client.force_authenticate(user=self.admin_user)
-        response = self.client.get("/api/search/queries/analytics/")
+        response = self.client.get("/api/v1/search/queries/analytics/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("total_searches", response.data)
         self.assertIn("unique_queries", response.data)
@@ -365,5 +365,5 @@ class SearchQueryAnalyticsTests(APITestCase):
     def test_search_analytics_requires_admin(self):
         """Test analytics endpoint requires admin"""
         self.client.force_authenticate(user=self.normal_user)
-        response = self.client.get("/api/search/queries/analytics/")
+        response = self.client.get("/api/v1/search/queries/analytics/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
