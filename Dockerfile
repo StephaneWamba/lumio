@@ -14,12 +14,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy dependency files
+# Copy dependency files and source code
 COPY pyproject.toml uv.lock* ./
+COPY lumio ./lumio
+COPY manage.py ./
 
-# Install dependencies with uv (reduce concurrent downloads to prevent timeout)
-ENV UV_CONCURRENT_DOWNLOADS=4
-RUN uv pip install --python /opt/venv/bin/python -e . --no-cache
+# Install dependencies with uv
+# --system avoids virtualenv overhead (Docker is already isolated)
+# --no-build-isolation prevents wheel build delays
+RUN uv pip install --system -e . --no-build-isolation --no-cache
 
 # Runtime stage - minimal image
 FROM python:3.12-slim
@@ -30,12 +33,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy venv from builder
-COPY --from=builder /opt/venv /opt/venv
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Set environment variables
-ENV PATH="/opt/venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=config.settings.production
 
