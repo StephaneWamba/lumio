@@ -1,0 +1,203 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  AWS_REGION: eu-central-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: lumio_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[dev]"
+
+      - name: Lint with flake8
+        run: |
+          flake8 apps config --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 apps config --count --exit-zero --max-complexity=10 --max-line-length=100
+
+      - name: Format check with black
+        run: black --check apps config
+
+      - name: Type check with mypy
+        run: mypy apps config --ignore-missing-imports
+        continue-on-error: true
+
+      - name: Run tests with pytest
+        run: |
+          pytest --cov=apps --cov-report=xml --cov-report=html -v
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lumio_test
+          REDIS_URL: redis://localhost:6379/0
+          DJANGO_SETTINGS_MODULE: config.settings.test
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  build:
+    name: Build Docker Images
+    needs: quality
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Create ECR repositories if they don't exist
+        run: |
+          for repo in lumio-app lumio-celery lumio-ffmpeg; do
+            aws ecr describe-repositories --repository-names $repo --region ${{ env.AWS_REGION }} 2>/dev/null || \
+            aws ecr create-repository --repository-name $repo --region ${{ env.AWS_REGION }} --image-tag-mutability MUTABLE
+          done
+
+      - name: Build and push Django app image
+        run: |
+          docker build -t ${{ env.ECR_REGISTRY }}/lumio-app:${{ env.IMAGE_TAG }} \
+                       -t ${{ env.ECR_REGISTRY }}/lumio-app:latest \
+                       -f Dockerfile .
+          docker push ${{ env.ECR_REGISTRY }}/lumio-app:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_REGISTRY }}/lumio-app:latest
+
+      - name: Build and push Celery worker image
+        run: |
+          docker build -t ${{ env.ECR_REGISTRY }}/lumio-celery:${{ env.IMAGE_TAG }} \
+                       -t ${{ env.ECR_REGISTRY }}/lumio-celery:latest \
+                       -f Dockerfile.celery .
+          docker push ${{ env.ECR_REGISTRY }}/lumio-celery:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_REGISTRY }}/lumio-celery:latest
+
+      - name: Build and push FFmpeg worker image
+        run: |
+          docker build -t ${{ env.ECR_REGISTRY }}/lumio-ffmpeg:${{ env.IMAGE_TAG }} \
+                       -t ${{ env.ECR_REGISTRY }}/lumio-ffmpeg:latest \
+                       -f Dockerfile.ffmpeg .
+          docker push ${{ env.ECR_REGISTRY }}/lumio-ffmpeg:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_REGISTRY }}/lumio-ffmpeg:latest
+
+  deploy:
+    name: Deploy to Production
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.lumio.io
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7.0
+
+      - name: Terraform Init
+        run: |
+          cd terraform
+          terraform init -backend-config="bucket=lumio-tf-state-674544924217" \
+                         -backend-config="key=lumio/terraform.tfstate" \
+                         -backend-config="region=${{ env.AWS_REGION }}" \
+                         -backend-config="dynamodb_table=lumio-tflock"
+
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform plan -var-file="environments/production.tfvars" \
+                         -var="image_tag=${{ env.IMAGE_TAG }}" \
+                         -out=tfplan
+
+      - name: Terraform Apply
+        run: |
+          cd terraform
+          terraform apply -auto-approve tfplan
+
+      - name: Force ECS Deployment
+        run: |
+          aws ecs update-service --cluster lumio \
+                                 --service lumio-app \
+                                 --force-new-deployment \
+                                 --region ${{ env.AWS_REGION }}
+
+      - name: Wait for ECS service to stabilize
+        run: |
+          aws ecs wait services-stable --cluster lumio \
+                                       --services lumio-app \
+                                       --region ${{ env.AWS_REGION }}
+
+      - name: Notify Slack
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'Lumio production deployment ${{ job.status }} - ${{ github.sha }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}

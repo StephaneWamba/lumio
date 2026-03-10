@@ -1,0 +1,44 @@
+# FFmpeg worker Dockerfile - dedicated container for video transcoding - Optimized with uv
+FROM python:3.12-slim AS builder
+
+# Install uv (Rust-based package manager - 10-100x faster than pip)
+RUN pip install uv
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY pyproject.toml uv.lock* ./
+RUN uv pip install --python /opt/venv/bin/python -e . --no-cache
+
+# Runtime stage with FFmpeg
+FROM jrottenberg/ffmpeg:5.1-ubuntu2004
+
+# Install Python and runtime deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-venv \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
+
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DJANGO_SETTINGS_MODULE=config.settings.production
+
+RUN useradd -m -u 1000 appuser
+
+WORKDIR /app
+COPY --chown=appuser:appuser . .
+
+USER appuser
+
+# Run Celery worker dedicated to transcoding
+CMD ["celery", "-A", "config", "worker", "--loglevel=info", "--concurrency=2", "-Q", "transcoding"]

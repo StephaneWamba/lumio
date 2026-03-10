@@ -1,0 +1,127 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lumio"
+version = "0.1.0"
+description = "Production-grade Learning Management System"
+requires-python = ">=3.12"
+
+dependencies = [
+    # Django
+    "Django",
+    "djangorestframework",
+    "django-cors-headers",
+    "django-filter",
+    "drf-spectacular",
+    "djangorestframework-simplejwt",
+    "social-auth-app-django",
+
+    # Permissions & Auth
+    "django-guardian",
+
+    # Database
+    "psycopg[binary]",
+
+    # Async & Jobs
+    "celery",
+    "redis",
+
+    # Media
+    "Pillow",
+    "WeasyPrint",
+    "boto3",
+
+    # Email
+    "resend",
+
+    # Payments
+    "stripe",
+
+    # Logging
+    "structlog",
+    "python-json-logger",
+
+    # Error tracking
+    "sentry-sdk",
+
+    # Utilities
+    "python-decouple",
+    "python-dateutil",
+    "requests",
+
+    # Monitoring
+    "prometheus-client",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-django",
+    "pytest-cov",
+    "factory-boy",
+    "faker",
+    "black",
+    "flake8",
+    "mypy",
+    "django-stubs",
+    "types-requests",
+    "types-redis",
+    "ipython",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+addopts = "--cov=apps --cov-report=html --cov-report=term-missing --strict-markers -v"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+source = ["apps"]
+omit = [
+    "*/migrations/*",
+    "*/tests.py",
+    "*/test_*.py",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = true
+disallow_untyped_calls = false
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_optional = true
+plugins = ["mypy_django_plugin.main"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+
+[tool.isort]
+profile = "black"
+line_length = 100
