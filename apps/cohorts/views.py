@@ -1,4 +1,5 @@
 """Cohorts views: cohort management and drip publishing"""
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -32,9 +33,7 @@ class CohortViewSet(viewsets.ModelViewSet):
         """Filter cohorts by user role"""
         if self.request.user.role == User.ROLE_STUDENT:
             # Students see cohorts they're in or can join
-            return Cohort.objects.filter(
-                course__is_published=True
-            ) | Cohort.objects.filter(
+            return Cohort.objects.filter(course__is_published=True) | Cohort.objects.filter(
                 members__student=self.request.user
             )
         # Instructors see cohorts for their courses

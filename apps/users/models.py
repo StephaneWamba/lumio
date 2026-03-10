@@ -1,4 +1,5 @@
 """User models: custom User, profiles, authentication"""
+
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils.timezone import now
@@ -95,7 +96,9 @@ class InstructorProfile(models.Model):
     # Approval status
     is_approved = models.BooleanField(default=False, db_index=True)
     approved_at = models.DateTimeField(null=True, blank=True)
-    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_instructors")
+    approved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_instructors"
+    )
 
     # Dates
     created_at = models.DateTimeField(auto_now_add=True)

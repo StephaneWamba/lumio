@@ -1,4 +1,5 @@
 """Cohorts and drip publishing models"""
+
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
@@ -20,9 +21,7 @@ class Cohort(models.Model):
     description = models.TextField(blank=True)
 
     # Cohort timing
-    start_date = models.DateTimeField(
-        help_text="When cohort starts and content begins dripping"
-    )
+    start_date = models.DateTimeField(help_text="When cohort starts and content begins dripping")
     end_date = models.DateTimeField(
         null=True,
         blank=True,

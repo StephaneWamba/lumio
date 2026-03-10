@@ -1,4 +1,5 @@
 """Search app admin configuration"""
+
 from django.contrib import admin
 from .models import SearchIndex, SearchQuery
 
@@ -26,46 +27,50 @@ class SearchIndexAdmin(admin.ModelAdmin):
         "updated_at",
     ]
     fieldsets = (
-        ("Content", {
-            "fields": (
-                "content_type",
-                "object_id",
-                "title",
-                "description",
-            )
-        }),
-        ("Metadata", {
-            "fields": (
-                "category",
-                "difficulty",
-                "duration_hours",
-                "is_published",
-            )
-        }),
-        ("Instructor & Ratings", {
-            "fields": (
-                "instructor_name",
-                "rating",
-                "review_count",
-            )
-        }),
-        ("Engagement", {
-            "fields": (
-                "enrollment_count",
-            )
-        }),
-        ("Search", {
-            "fields": (
-                "search_vector",
-            )
-        }),
-        ("Timestamps", {
-            "fields": (
-                "created_at",
-                "updated_at",
-            ),
-            "classes": ("collapse",)
-        }),
+        (
+            "Content",
+            {
+                "fields": (
+                    "content_type",
+                    "object_id",
+                    "title",
+                    "description",
+                )
+            },
+        ),
+        (
+            "Metadata",
+            {
+                "fields": (
+                    "category",
+                    "difficulty",
+                    "duration_hours",
+                    "is_published",
+                )
+            },
+        ),
+        (
+            "Instructor & Ratings",
+            {
+                "fields": (
+                    "instructor_name",
+                    "rating",
+                    "review_count",
+                )
+            },
+        ),
+        ("Engagement", {"fields": ("enrollment_count",)}),
+        ("Search", {"fields": ("search_vector",)}),
+        (
+            "Timestamps",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
 
@@ -83,22 +88,17 @@ class SearchQueryAdmin(admin.ModelAdmin):
     search_fields = ["query", "user__email", "user__name"]
     readonly_fields = ["timestamp", "created_at"]
     fieldsets = (
-        ("Query", {
-            "fields": (
-                "query",
-                "result_count",
-            )
-        }),
-        ("User", {
-            "fields": (
-                "user",
-            )
-        }),
-        ("Metadata", {
-            "fields": (
-                "timestamp",
-            )
-        }),
+        (
+            "Query",
+            {
+                "fields": (
+                    "query",
+                    "result_count",
+                )
+            },
+        ),
+        ("User", {"fields": ("user",)}),
+        ("Metadata", {"fields": ("timestamp",)}),
     )
 
     def has_add_permission(self, request):

@@ -1,4 +1,5 @@
 """Search app models"""
+
 from django.db import models
 from django.contrib.postgres.search import SearchVectorField
 from apps.courses.models import Course, Lesson, Section

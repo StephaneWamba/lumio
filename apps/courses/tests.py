@@ -1,4 +1,5 @@
 """Tests for course content management"""
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -112,9 +113,7 @@ class CourseTests(TestCase):
             is_published=False,
         )
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.get(
-            reverse("course-publish", args=[unpublished.id])
-        )
+        response = self.client.get(reverse("course-publish", args=[unpublished.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         unpublished.refresh_from_db()
         self.assertTrue(unpublished.is_published)
@@ -146,9 +145,7 @@ class SectionTests(TestCase):
 
     def test_list_sections(self):
         """Test listing sections for a course"""
-        response = self.client.get(
-            reverse("course-sections", args=[self.course.id])
-        )
+        response = self.client.get(reverse("course-sections", args=[self.course.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_create_section(self):

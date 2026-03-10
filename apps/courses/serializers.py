@@ -1,4 +1,5 @@
 """Course serializers"""
+
 from rest_framework import serializers
 from apps.users.serializers import UserSerializer
 from .models import Course, Section, Lesson

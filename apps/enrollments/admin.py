@@ -1,4 +1,5 @@
 """Enrollments app admin configuration"""
+
 from django.contrib import admin
 from .models import Enrollment, ProgressEvent, LessonProgress
 

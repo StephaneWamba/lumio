@@ -1,4 +1,5 @@
 """Certificates app admin configuration"""
+
 from django.contrib import admin
 from .models import CertificateTemplate, CertificateAward, EarnedCertificate
 

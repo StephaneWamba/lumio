@@ -1,4 +1,5 @@
 """Enrollments views: enrollment management and progress tracking"""
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -183,9 +184,8 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 
         # Recalculate course progress percentage
         from django.db.models import Count
-        total_lessons = Lesson.objects.filter(
-            section__course=enrollment.course
-        ).count()
+
+        total_lessons = Lesson.objects.filter(section__course=enrollment.course).count()
         completed_lessons = LessonProgress.objects.filter(
             enrollment=enrollment,
             completed_at__isnull=False,

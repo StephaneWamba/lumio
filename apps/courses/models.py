@@ -1,4 +1,5 @@
 """Course content models: courses, sections, lessons"""
+
 from django.db import models
 from django.contrib.postgres.search import SearchVectorField
 from apps.users.models import User

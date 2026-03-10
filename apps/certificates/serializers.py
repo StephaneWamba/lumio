@@ -1,4 +1,5 @@
 """Certificates app serializers"""
+
 from rest_framework import serializers
 from .models import CertificateTemplate, CertificateAward, EarnedCertificate
 from apps.courses.serializers import CourseListSerializer

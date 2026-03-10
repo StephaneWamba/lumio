@@ -1,4 +1,5 @@
 """Tests for payments"""
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -197,9 +198,7 @@ class PaymentTests(TestCase):
             status=Payment.STATUS_PENDING,
         )
         self.client.force_authenticate(user=self.student)
-        response = self.client.post(
-            reverse("payment-complete-payment", args=[payment.id])
-        )
+        response = self.client.post(reverse("payment-complete-payment", args=[payment.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "completed")
 
@@ -333,10 +332,6 @@ class InvoiceTests(TestCase):
             status=Payment.STATUS_PENDING,
         )
         self.client.force_authenticate(user=self.student)
-        self.client.post(
-            reverse("payment-complete-payment", args=[new_payment.id])
-        )
+        self.client.post(reverse("payment-complete-payment", args=[new_payment.id]))
         # Verify invoice was created
-        self.assertTrue(
-            Invoice.objects.filter(payment=new_payment).exists()
-        )
+        self.assertTrue(Invoice.objects.filter(payment=new_payment).exists())

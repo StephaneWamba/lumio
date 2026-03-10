@@ -1,4 +1,5 @@
 """Search app serializers"""
+
 from rest_framework import serializers
 from .models import SearchIndex, SearchQuery
 

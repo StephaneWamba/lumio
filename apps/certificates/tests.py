@@ -1,4 +1,5 @@
 """Tests for certificates"""
+
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone

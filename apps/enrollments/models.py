@@ -1,4 +1,5 @@
 """Enrollments and progress tracking models"""
+
 from django.db import models
 from django.contrib.postgres.fields import JSONField
 from apps.users.models import User

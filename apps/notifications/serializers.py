@@ -1,4 +1,5 @@
 """Notifications app serializers"""
+
 from rest_framework import serializers
 from .models import NotificationTemplate, NotificationPreference, Notification, NotificationLog
 from apps.users.serializers import UserSerializer

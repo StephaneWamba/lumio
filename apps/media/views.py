@@ -1,4 +1,5 @@
 """Media views: video upload, transcoding, signed URLs"""
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -116,6 +117,7 @@ class SignedVideoUrlView(viewsets.ViewSet):
         try:
             signed_url_obj = lesson.cloudfront_signed_url
             from django.utils import timezone
+
             if signed_url_obj.expires_at > timezone.now():
                 return Response(
                     {

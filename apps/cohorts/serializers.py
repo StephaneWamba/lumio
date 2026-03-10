@@ -1,4 +1,5 @@
 """Cohorts serializers"""
+
 from rest_framework import serializers
 from apps.users.serializers import UserSerializer
 from apps.courses.serializers import CourseListSerializer

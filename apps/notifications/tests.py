@@ -1,4 +1,5 @@
 """Tests for notifications"""
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -191,9 +192,7 @@ class NotificationTests(TestCase):
             is_read=False,
         )
         self.client.force_authenticate(user=self.user)
-        response = self.client.post(
-            reverse("notification-mark-as-read", args=[notification.id])
-        )
+        response = self.client.post(reverse("notification-mark-as-read", args=[notification.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["is_read"])
 

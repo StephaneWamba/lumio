@@ -1,4 +1,5 @@
 """User authentication and profile views"""
+
 from django.contrib.auth import authenticate
 from django.db import transaction
 from rest_framework import status, viewsets

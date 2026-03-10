@@ -1,4 +1,5 @@
 """Assessments views: quiz management and grading"""
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -81,10 +82,14 @@ class QuizViewSet(viewsets.ReadOnlyModelViewSet):
                 )
 
         # Check if previous attempt passed (no retake)
-        last_attempt = QuizAttempt.objects.filter(
-            lesson_progress=lesson_progress,
-            quiz=quiz,
-        ).order_by("-attempt_number").first()
+        last_attempt = (
+            QuizAttempt.objects.filter(
+                lesson_progress=lesson_progress,
+                quiz=quiz,
+            )
+            .order_by("-attempt_number")
+            .first()
+        )
 
         if last_attempt and last_attempt.is_passed and not quiz.allow_retake:
             return Response(
@@ -206,9 +211,11 @@ class QuizAttemptViewSet(viewsets.ModelViewSet):
 
             elif question.question_type == Question.QUESTION_TYPE_TRUE_FALSE:
                 is_correct = (
-                    answer_value.lower() == "true" and question.options.filter(text="True", is_correct=True).exists()
+                    answer_value.lower() == "true"
+                    and question.options.filter(text="True", is_correct=True).exists()
                 ) or (
-                    answer_value.lower() == "false" and question.options.filter(text="False", is_correct=True).exists()
+                    answer_value.lower() == "false"
+                    and question.options.filter(text="False", is_correct=True).exists()
                 )
                 points = question.points if is_correct else Decimal("0")
 
@@ -237,7 +244,9 @@ class QuizAttemptViewSet(viewsets.ModelViewSet):
         attempt.status = QuizAttempt.ATTEMPT_STATUS_SUBMITTED
         attempt.submitted_at = timezone.now()
         attempt.score = earned_points
-        attempt.percentage_score = (earned_points / total_points * 100) if total_points > 0 else Decimal("0")
+        attempt.percentage_score = (
+            (earned_points / total_points * 100) if total_points > 0 else Decimal("0")
+        )
         attempt.is_passed = attempt.percentage_score >= attempt.quiz.passing_score
         attempt.status = QuizAttempt.ATTEMPT_STATUS_GRADED
         attempt.save()

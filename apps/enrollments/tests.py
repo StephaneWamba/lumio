@@ -1,4 +1,5 @@
 """Tests for enrollments and progress tracking"""
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -245,9 +246,7 @@ class LessonProgressTests(TestCase):
             completed_at=None,
         )
         self.client.force_authenticate(user=self.student)
-        response = self.client.get(
-            reverse("enrollment-progress", args=[self.enrollment.id])
-        )
+        response = self.client.get(reverse("enrollment-progress", args=[self.enrollment.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
@@ -331,8 +330,6 @@ class ProgressEventTests(TestCase):
             event_type=ProgressEvent.EVENT_LESSON_VIEWED,
         )
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.get(
-            f"{reverse('progressevent-list')}?student_id={self.student.id}"
-        )
+        response = self.client.get(f"{reverse('progressevent-list')}?student_id={self.student.id}")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)

@@ -2,6 +2,7 @@
 Django base settings for lumio project.
 Environment-specific overrides in staging.py and production.py
 """
+
 import os
 from pathlib import Path
 from decouple import config, Csv

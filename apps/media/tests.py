@@ -1,4 +1,5 @@
 """Tests for media management and video streaming"""
+
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -109,9 +110,7 @@ class VideoFileTests(TestCase):
             status=VideoFile.STATUS_PROCESSING,
         )
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.get(
-            reverse("videofile-status", args=[video.id])
-        )
+        response = self.client.get(reverse("videofile-status", args=[video.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], VideoFile.STATUS_PROCESSING)
         self.assertFalse(response.data["hls_ready"])
@@ -129,9 +128,7 @@ class VideoFileTests(TestCase):
             status=VideoFile.STATUS_COMPLETED,
         )
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.get(
-            reverse("videofile-status", args=[video.id])
-        )
+        response = self.client.get(reverse("videofile-status", args=[video.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], VideoFile.STATUS_COMPLETED)
         self.assertTrue(response.data["hls_ready"])
@@ -177,25 +174,19 @@ class SignedVideoUrlTests(TestCase):
 
     def test_get_video_url_requires_auth(self):
         """Test video URL endpoint requires authentication"""
-        response = self.client.get(
-            reverse("signed-video-url-get-video-url", args=[self.lesson.id])
-        )
+        response = self.client.get(reverse("signed-video-url-get-video-url", args=[self.lesson.id]))
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_video_url_lesson_not_found(self):
         """Test video URL endpoint with non-existent lesson"""
         self.client.force_authenticate(user=self.student)
-        response = self.client.get(
-            reverse("signed-video-url-get-video-url", args=[99999])
-        )
+        response = self.client.get(reverse("signed-video-url-get-video-url", args=[99999]))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_video_url_no_video(self):
         """Test video URL endpoint when lesson has no video"""
         self.client.force_authenticate(user=self.student)
-        response = self.client.get(
-            reverse("signed-video-url-get-video-url", args=[self.lesson.id])
-        )
+        response = self.client.get(reverse("signed-video-url-get-video-url", args=[self.lesson.id]))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_video_url_not_processed(self):
@@ -206,9 +197,7 @@ class SignedVideoUrlTests(TestCase):
             status=VideoFile.STATUS_PROCESSING,
         )
         self.client.force_authenticate(user=self.student)
-        response = self.client.get(
-            reverse("signed-video-url-get-video-url", args=[self.lesson.id])
-        )
+        response = self.client.get(reverse("signed-video-url-get-video-url", args=[self.lesson.id]))
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("processing", response.data["error"].lower())
 
@@ -227,9 +216,7 @@ class SignedVideoUrlTests(TestCase):
             expires_at=expires_at,
         )
         self.client.force_authenticate(user=self.student)
-        response = self.client.get(
-            reverse("signed-video-url-get-video-url", args=[self.lesson.id])
-        )
+        response = self.client.get(reverse("signed-video-url-get-video-url", args=[self.lesson.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("signed_url", response.data)
         self.assertIn("expires_at", response.data)
@@ -249,9 +236,7 @@ class SignedVideoUrlTests(TestCase):
             expires_at=expires_at,
         )
         self.client.force_authenticate(user=self.student)
-        response = self.client.get(
-            reverse("signed-video-url-get-video-url", args=[self.lesson.id])
-        )
+        response = self.client.get(reverse("signed-video-url-get-video-url", args=[self.lesson.id]))
         # Currently returns 501 as CloudFront signed URL generation is TODO
         self.assertEqual(response.status_code, status.HTTP_501_NOT_IMPLEMENTED)
         self.assertIn("error", response.data)

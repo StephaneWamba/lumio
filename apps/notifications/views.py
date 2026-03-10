@@ -1,4 +1,5 @@
 """Notifications app views"""
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -68,9 +69,7 @@ class NotificationViewSet(viewsets.ViewSet):
 
     def list(self, request):
         """List user's notifications"""
-        notifications = Notification.objects.filter(user=request.user).order_by(
-            "-created_at"
-        )
+        notifications = Notification.objects.filter(user=request.user).order_by("-created_at")
 
         # Filter parameters
         is_read = request.query_params.get("is_read")

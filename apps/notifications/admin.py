@@ -1,4 +1,5 @@
 """Notifications app admin configuration"""
+
 from django.contrib import admin
 from .models import (
     NotificationTemplate,

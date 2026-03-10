@@ -1,4 +1,5 @@
 """Analytics app models"""
+
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from apps.courses.models import Course, Section, Lesson

@@ -1,4 +1,5 @@
 """Assessments serializers"""
+
 from rest_framework import serializers
 from decimal import Decimal
 from .models import Quiz, Question, QuestionOption, QuizAttempt, AttemptAnswer
@@ -93,9 +94,7 @@ class QuizDetailSerializer(serializers.ModelSerializer):
 
     def get_total_points(self, obj):
         """Calculate total points in quiz"""
-        return obj.questions.aggregate(
-            total=models.Sum("points")
-        )["total"] or Decimal("0")
+        return obj.questions.aggregate(total=models.Sum("points"))["total"] or Decimal("0")
 
 
 class AttemptAnswerSerializer(serializers.ModelSerializer):

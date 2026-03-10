@@ -1,4 +1,5 @@
 """Tests for user authentication and permissions"""
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status

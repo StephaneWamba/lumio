@@ -1,4 +1,5 @@
 """Search app views"""
+
 from rest_framework import viewsets, status, filters as drf_filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -89,9 +90,7 @@ class SearchViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(content_type=content_type)
 
         facets = {
-            "content_types": [
-                {"value": ct[0], "label": ct[1]} for ct in SearchIndex.CONTENT_TYPES
-            ],
+            "content_types": [{"value": ct[0], "label": ct[1]} for ct in SearchIndex.CONTENT_TYPES],
             "categories": list(
                 queryset.values_list("category", flat=True)
                 .distinct()
@@ -117,7 +116,8 @@ class SearchViewSet(viewsets.ReadOnlyModelViewSet):
             },
             "duration_range": {
                 "min": 0,
-                "max": int(queryset.aggregate(Avg("duration_hours"))["duration_hours__avg"] or 0) + 10,
+                "max": int(queryset.aggregate(Avg("duration_hours"))["duration_hours__avg"] or 0)
+                + 10,
                 "step": 5,
             },
         }
@@ -152,9 +152,7 @@ class SearchViewSet(viewsets.ReadOnlyModelViewSet):
             .order_by("-count")[:limit]
         )
 
-        result = [
-            {"query": t["query"], "count": t["count"]} for t in trending
-        ]
+        result = [{"query": t["query"], "count": t["count"]} for t in trending]
 
         # Cache trending
         SearchCache.set_trending_searches(result, limit)
@@ -213,15 +211,15 @@ class SearchQueryViewSet(viewsets.ReadOnlyModelViewSet):
         start_date = timezone.now() - timedelta(days=period_days)
 
         analytics = {
-            "total_searches": SearchQuery.objects.filter(
-                timestamp__gte=start_date
-            ).count(),
-            "unique_queries": SearchQuery.objects.filter(
-                timestamp__gte=start_date
-            ).values("query").distinct().count(),
+            "total_searches": SearchQuery.objects.filter(timestamp__gte=start_date).count(),
+            "unique_queries": SearchQuery.objects.filter(timestamp__gte=start_date)
+            .values("query")
+            .distinct()
+            .count(),
             "avg_results_per_query": SearchQuery.objects.filter(
                 timestamp__gte=start_date
-            ).aggregate(Avg("result_count"))["result_count__avg"] or 0,
+            ).aggregate(Avg("result_count"))["result_count__avg"]
+            or 0,
             "zero_result_queries": SearchQuery.objects.filter(
                 timestamp__gte=start_date,
                 result_count=0,

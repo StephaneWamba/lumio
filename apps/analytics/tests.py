@@ -1,4 +1,5 @@
 """Tests for analytics"""
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -71,9 +72,7 @@ class CourseAnalyticsTests(TestCase):
     def test_retrieve_analytics(self):
         """Test retrieving analytics detail"""
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.get(
-            reverse("course-analytics-detail", args=[self.analytics.id])
-        )
+        response = self.client.get(reverse("course-analytics-detail", args=[self.analytics.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["total_enrollments"], 1)
 
@@ -135,9 +134,7 @@ class LessonAnalyticsTests(TestCase):
     def test_retrieve_lesson_analytics(self):
         """Test retrieving lesson analytics detail"""
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.get(
-            reverse("lesson-analytics-detail", args=[self.analytics.id])
-        )
+        response = self.client.get(reverse("lesson-analytics-detail", args=[self.analytics.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["total_views"], 10)
 
@@ -190,9 +187,7 @@ class QuizAnalyticsTests(TestCase):
     def test_retrieve_quiz_analytics(self):
         """Test retrieving quiz analytics detail"""
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.get(
-            reverse("quiz-analytics-detail", args=[self.analytics.id])
-        )
+        response = self.client.get(reverse("quiz-analytics-detail", args=[self.analytics.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["pass_rate"], "80.00")
 

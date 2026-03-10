@@ -1,4 +1,5 @@
 """Payments app serializers"""
+
 from rest_framework import serializers
 from .models import Price, Payment, Invoice, PaymentLog
 from apps.courses.serializers import CourseListSerializer

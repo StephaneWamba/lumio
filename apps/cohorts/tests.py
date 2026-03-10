@@ -1,4 +1,5 @@
 """Tests for cohorts and drip publishing"""
+
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -69,9 +70,7 @@ class CohortTests(TestCase):
     def test_join_cohort(self):
         """Test student can join a cohort"""
         self.client.force_authenticate(user=self.student1)
-        response = self.client.post(
-            reverse("cohort-join", args=[self.cohort.id])
-        )
+        response = self.client.post(reverse("cohort-join", args=[self.cohort.id]))
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(
             CohortMember.objects.filter(
@@ -85,13 +84,11 @@ class CohortTests(TestCase):
         CohortMember.objects.create(
             cohort=self.cohort,
             student=self.student1,
-            enrollment=self.course.enrollments.first() or
-                       self.course.enrollments.create(student=self.student1),
+            enrollment=self.course.enrollments.first()
+            or self.course.enrollments.create(student=self.student1),
         )
         self.client.force_authenticate(user=self.student1)
-        response = self.client.post(
-            reverse("cohort-join", args=[self.cohort.id])
-        )
+        response = self.client.post(reverse("cohort-join", args=[self.cohort.id]))
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_cannot_join_closed_cohort(self):
@@ -103,9 +100,7 @@ class CohortTests(TestCase):
             is_open=False,
         )
         self.client.force_authenticate(user=self.student1)
-        response = self.client.post(
-            reverse("cohort-join", args=[closed_cohort.id])
-        )
+        response = self.client.post(reverse("cohort-join", args=[closed_cohort.id]))
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_cohort_max_students_limit(self):
@@ -127,9 +122,7 @@ class CohortTests(TestCase):
 
         # Second student tries to join
         self.client.force_authenticate(user=self.student2)
-        response = self.client.post(
-            reverse("cohort-join", args=[limited_cohort.id])
-        )
+        response = self.client.post(reverse("cohort-join", args=[limited_cohort.id]))
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_list_cohort_members(self):
@@ -141,9 +134,7 @@ class CohortTests(TestCase):
             enrollment=enrollment,
         )
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.get(
-            reverse("cohort-members", args=[self.cohort.id])
-        )
+        response = self.client.get(reverse("cohort-members", args=[self.cohort.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
@@ -232,9 +223,7 @@ class DripScheduleTests(TestCase):
             is_released=False,
         )
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.post(
-            reverse("dripschedule-manually-release", args=[schedule.id])
-        )
+        response = self.client.post(reverse("dripschedule-manually-release", args=[schedule.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["is_released"])
 
@@ -248,7 +237,5 @@ class DripScheduleTests(TestCase):
             released_at=timezone.now(),
         )
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.post(
-            reverse("dripschedule-manually-release", args=[schedule.id])
-        )
+        response = self.client.post(reverse("dripschedule-manually-release", args=[schedule.id]))
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

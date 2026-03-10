@@ -1,4 +1,5 @@
 """Certificates app views"""
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -91,9 +92,7 @@ class EarnedCertificateViewSet(viewsets.ReadOnlyModelViewSet):
             return EarnedCertificate.objects.all()
         if user.role == "instructor":
             # Instructors see certificates for their courses
-            return EarnedCertificate.objects.filter(
-                enrollment__course__instructor=user
-            )
+            return EarnedCertificate.objects.filter(enrollment__course__instructor=user)
         # Students see only their own certificates
         return EarnedCertificate.objects.filter(enrollment__student=user)
 
@@ -116,10 +115,7 @@ class EarnedCertificateViewSet(viewsets.ReadOnlyModelViewSet):
         enrollment = get_object_or_404(Enrollment, id=enrollment_id)
 
         # Verify instructor owns the course
-        if (
-            request.user != enrollment.course.instructor
-            and not request.user.is_staff
-        ):
+        if request.user != enrollment.course.instructor and not request.user.is_staff:
             self.permission_denied(request)
 
         # Check if certificate already issued
@@ -153,10 +149,7 @@ class EarnedCertificateViewSet(viewsets.ReadOnlyModelViewSet):
         certificate = self.get_object()
 
         # Verify instructor owns the course
-        if (
-            request.user != certificate.enrollment.course.instructor
-            and not request.user.is_staff
-        ):
+        if request.user != certificate.enrollment.course.instructor and not request.user.is_staff:
             self.permission_denied(request)
 
         if certificate.is_revoked:
@@ -178,7 +171,9 @@ class EarnedCertificateViewSet(viewsets.ReadOnlyModelViewSet):
 
     def _create_certificate(self, enrollment, template):
         """Create and render certificate for enrollment"""
-        certificate_number = f"CERT-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        certificate_number = (
+            f"CERT-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        )
 
         # Render certificate content
         rendered_content = template.content.format(

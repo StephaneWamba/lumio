@@ -1,4 +1,5 @@
 """Notifications app models"""
+
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from apps.users.models import User
@@ -34,7 +35,9 @@ class NotificationTemplate(models.Model):
     )
     name = models.CharField(max_length=255)
     subject = models.CharField(max_length=255, help_text="Email subject with optional placeholders")
-    message = models.TextField(help_text="Notification message with optional placeholders: {user_name}, {course_title}, etc.")
+    message = models.TextField(
+        help_text="Notification message with optional placeholders: {user_name}, {course_title}, etc."
+    )
 
     # Channel preferences
     send_in_app = models.BooleanField(default=True)
@@ -165,6 +168,7 @@ class Notification(models.Model):
         """Mark notification as read"""
         if not self.is_read:
             from django.utils import timezone
+
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=["is_read", "read_at"])

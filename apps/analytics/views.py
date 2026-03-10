@@ -1,4 +1,5 @@
 """Analytics app views"""
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -37,9 +38,7 @@ class CourseAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
         if user.is_staff or user.role == "admin":
             return CourseAnalytics.objects.all().select_related("course")
         if user.role == "instructor":
-            return CourseAnalytics.objects.filter(
-                course__instructor=user
-            ).select_related("course")
+            return CourseAnalytics.objects.filter(course__instructor=user).select_related("course")
         return CourseAnalytics.objects.none()
 
     serializer_class = CourseAnalyticsSerializer
@@ -49,10 +48,7 @@ class CourseAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
         """Recalculate analytics for a course"""
         analytics = self.get_object()
 
-        if (
-            request.user != analytics.course.instructor
-            and not request.user.is_staff
-        ):
+        if request.user != analytics.course.instructor and not request.user.is_staff:
             self.permission_denied(request)
 
         # Recalculate all metrics
@@ -61,12 +57,11 @@ class CourseAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
 
         analytics.total_enrollments = enrollments.count()
         analytics.active_students = enrollments.filter(progress_percentage__gt=0).count()
-        analytics.completed_students = enrollments.filter(
-            progress_percentage=100
-        ).count()
+        analytics.completed_students = enrollments.filter(progress_percentage=100).count()
 
         # Calculate average and median progress
         from django.db.models import Avg
+
         analytics.average_progress = (
             enrollments.aggregate(Avg("progress_percentage"))["progress_percentage__avg"] or 0
         )
@@ -97,9 +92,7 @@ class LessonAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
         if user.is_staff or user.role == "admin":
             return LessonAnalytics.objects.all()
         if user.role == "instructor":
-            return LessonAnalytics.objects.filter(
-                lesson__section__course__instructor=user
-            )
+            return LessonAnalytics.objects.filter(lesson__section__course__instructor=user)
         return LessonAnalytics.objects.none()
 
     serializer_class = LessonAnalyticsSerializer
@@ -116,9 +109,7 @@ class QuizAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
         if user.is_staff or user.role == "admin":
             return QuizAnalytics.objects.all()
         if user.role == "instructor":
-            return QuizAnalytics.objects.filter(
-                quiz__lesson__section__course__instructor=user
-            )
+            return QuizAnalytics.objects.filter(quiz__lesson__section__course__instructor=user)
         return QuizAnalytics.objects.none()
 
     serializer_class = QuizAnalyticsSerializer
@@ -135,9 +126,7 @@ class StudentProgressSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
         if user.is_staff or user.role == "admin":
             return StudentProgressSnapshot.objects.all()
         if user.role == "instructor":
-            return StudentProgressSnapshot.objects.filter(
-                enrollment__course__instructor=user
-            )
+            return StudentProgressSnapshot.objects.filter(enrollment__course__instructor=user)
         # Students see only their own snapshots
         return StudentProgressSnapshot.objects.filter(enrollment__student=user)
 
@@ -155,9 +144,9 @@ class StudentProgressSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        snapshots = StudentProgressSnapshot.objects.filter(
-            enrollment__id=enrollment_id
-        ).order_by("-snapshot_date")
+        snapshots = StudentProgressSnapshot.objects.filter(enrollment__id=enrollment_id).order_by(
+            "-snapshot_date"
+        )
 
         serializer = StudentProgressSnapshotSerializer(snapshots, many=True)
         return Response(serializer.data)
@@ -179,14 +168,20 @@ class StudentProgressSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Get daily snapshots for past 30 days
         from django.db.models import Count, F
+
         thirty_days_ago = timezone.now().date() - timedelta(days=30)
-        snapshots = StudentProgressSnapshot.objects.filter(
-            enrollment__course=course,
-            snapshot_date__gte=thirty_days_ago,
-        ).values("snapshot_date").annotate(
-            avg_progress=Avg("progress_percentage"),
-            count=Count("id"),
-        ).order_by("snapshot_date")
+        snapshots = (
+            StudentProgressSnapshot.objects.filter(
+                enrollment__course=course,
+                snapshot_date__gte=thirty_days_ago,
+            )
+            .values("snapshot_date")
+            .annotate(
+                avg_progress=Avg("progress_percentage"),
+                count=Count("id"),
+            )
+            .order_by("snapshot_date")
+        )
 
         # Format response
         trend_data = [
@@ -237,6 +232,7 @@ class EngagementMetricViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Get top engaged students
         from django.db.models import Sum
+
         metrics = (
             EngagementMetric.objects.filter(course=course)
             .values("student__id", "student__name", "student__email")
@@ -264,6 +260,7 @@ class EngagementMetricViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Aggregate by metric type
         from django.db.models import Sum, Count, Q
+
         metrics = (
             EngagementMetric.objects.filter(course=course)
             .values("metric_type")

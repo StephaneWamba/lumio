@@ -1,4 +1,5 @@
 """Search app custom filters"""
+
 from django_filters import rest_framework as filters
 from django.contrib.postgres.search import SearchQuery, SearchRank
 from .models import SearchIndex

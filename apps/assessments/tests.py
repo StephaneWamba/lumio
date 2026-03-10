@@ -1,4 +1,5 @@
 """Tests for assessments and quizzes"""
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -62,9 +63,7 @@ class QuizTests(TestCase):
     def test_quiz_detail(self):
         """Test quiz detail view"""
         self.client.force_authenticate(user=self.student)
-        response = self.client.get(
-            reverse("quiz-detail", args=[self.quiz.id])
-        )
+        response = self.client.get(reverse("quiz-detail", args=[self.quiz.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Test Quiz")
 
@@ -143,9 +142,7 @@ class QuizAttemptTests(TestCase):
 
     def test_start_attempt_requires_auth(self):
         """Test starting attempt requires authentication"""
-        response = self.client.post(
-            reverse("quiz-start-attempt", args=[self.quiz.id])
-        )
+        response = self.client.post(reverse("quiz-start-attempt", args=[self.quiz.id]))
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_start_attempt_not_enrolled(self):
@@ -157,17 +154,13 @@ class QuizAttemptTests(TestCase):
             role=User.ROLE_STUDENT,
         )
         self.client.force_authenticate(user=other_student)
-        response = self.client.post(
-            reverse("quiz-start-attempt", args=[self.quiz.id])
-        )
+        response = self.client.post(reverse("quiz-start-attempt", args=[self.quiz.id]))
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_start_attempt(self):
         """Test starting a quiz attempt"""
         self.client.force_authenticate(user=self.student)
-        response = self.client.post(
-            reverse("quiz-start-attempt", args=[self.quiz.id])
-        )
+        response = self.client.post(reverse("quiz-start-attempt", args=[self.quiz.id]))
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["status"], "in_progress")
         self.assertEqual(response.data["attempt_number"], 1)
@@ -190,18 +183,14 @@ class QuizAttemptTests(TestCase):
         )
 
         self.client.force_authenticate(user=self.student)
-        response = self.client.post(
-            reverse("quiz-start-attempt", args=[quiz.id])
-        )
+        response = self.client.post(reverse("quiz-start-attempt", args=[quiz.id]))
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_submit_quiz_multiple_choice(self):
         """Test submitting quiz with multiple choice answer"""
         # Start attempt
         self.client.force_authenticate(user=self.student)
-        start_response = self.client.post(
-            reverse("quiz-start-attempt", args=[self.quiz.id])
-        )
+        start_response = self.client.post(reverse("quiz-start-attempt", args=[self.quiz.id]))
         attempt_id = start_response.data["id"]
 
         # Submit with correct answer
@@ -225,9 +214,7 @@ class QuizAttemptTests(TestCase):
     def test_submit_quiz_incorrect_answer(self):
         """Test submitting quiz with incorrect answer"""
         self.client.force_authenticate(user=self.student)
-        start_response = self.client.post(
-            reverse("quiz-start-attempt", args=[self.quiz.id])
-        )
+        start_response = self.client.post(reverse("quiz-start-attempt", args=[self.quiz.id]))
         attempt_id = start_response.data["id"]
 
         # Get the incorrect option
@@ -252,9 +239,7 @@ class QuizAttemptTests(TestCase):
     def test_submit_quiz_updates_lesson_progress(self):
         """Test submitting quiz updates lesson progress"""
         self.client.force_authenticate(user=self.student)
-        start_response = self.client.post(
-            reverse("quiz-start-attempt", args=[self.quiz.id])
-        )
+        start_response = self.client.post(reverse("quiz-start-attempt", args=[self.quiz.id]))
         attempt_id = start_response.data["id"]
 
         self.client.post(
@@ -277,9 +262,7 @@ class QuizAttemptTests(TestCase):
     def test_quiz_attempt_not_submitted_twice(self):
         """Test cannot submit same attempt twice"""
         self.client.force_authenticate(user=self.student)
-        start_response = self.client.post(
-            reverse("quiz-start-attempt", args=[self.quiz.id])
-        )
+        start_response = self.client.post(reverse("quiz-start-attempt", args=[self.quiz.id]))
         attempt_id = start_response.data["id"]
 
         # Submit first time

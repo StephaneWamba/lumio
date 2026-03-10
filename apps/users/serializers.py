@@ -1,4 +1,5 @@
 """User serializers for authentication and profile management"""
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -144,9 +145,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate(self, attrs):
         """Validate passwords match and old password is correct"""
         if attrs["new_password"] != attrs.pop("new_password2"):
-            raise serializers.ValidationError(
-                {"new_password": "Passwords must match."}
-            )
+            raise serializers.ValidationError({"new_password": "Passwords must match."})
         return attrs
 
     def validate_old_password(self, value):
@@ -190,9 +189,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     def validate(self, attrs):
         """Validate passwords match"""
         if attrs["new_password"] != attrs.pop("new_password2"):
-            raise serializers.ValidationError(
-                {"new_password": "Passwords must match."}
-            )
+            raise serializers.ValidationError({"new_password": "Passwords must match."})
         return attrs
 
 

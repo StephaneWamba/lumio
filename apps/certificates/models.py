@@ -1,4 +1,5 @@
 """Certificates app models"""
+
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
@@ -14,9 +15,13 @@ class CertificateTemplate(models.Model):
         on_delete=models.CASCADE,
         related_name="certificate_template",
     )
-    title = models.CharField(max_length=255, help_text="Certificate title e.g., 'Certificate of Completion'")
+    title = models.CharField(
+        max_length=255, help_text="Certificate title e.g., 'Certificate of Completion'"
+    )
     description = models.TextField(blank=True)
-    content = models.TextField(help_text="Certificate body text with optional placeholders: {student_name}, {course_title}, {completion_date}")
+    content = models.TextField(
+        help_text="Certificate body text with optional placeholders: {student_name}, {course_title}, {completion_date}"
+    )
 
     # Branding
     institution_name = models.CharField(max_length=255, blank=True)
@@ -24,7 +29,9 @@ class CertificateTemplate(models.Model):
     logo_url = models.URLField(blank=True, help_text="URL to institution logo")
 
     # Styling
-    color_primary = models.CharField(max_length=7, default="#003366", help_text="Primary brand color (hex)")
+    color_primary = models.CharField(
+        max_length=7, default="#003366", help_text="Primary brand color (hex)"
+    )
     color_accent = models.CharField(max_length=7, default="#0099CC", help_text="Accent color (hex)")
 
     is_active = models.BooleanField(default=True)
@@ -92,20 +99,26 @@ class CertificateAward(models.Model):
         if self.condition == self.CONDITION_SCORE_MINIMUM:
             # Check if student has passing quiz scores
             from apps.enrollments.models import LessonProgress
+
             lesson_progresses = LessonProgress.objects.filter(enrollment=enrollment)
             if not lesson_progresses.exists():
                 return False
-            avg_score = sum(lp.highest_quiz_score or 0 for lp in lesson_progresses) / len(lesson_progresses)
+            avg_score = sum(lp.highest_quiz_score or 0 for lp in lesson_progresses) / len(
+                lesson_progresses
+            )
             return avg_score >= self.minimum_score
 
         if self.condition == self.CONDITION_COURSE_COMPLETED_WITH_SCORE:
             if enrollment.progress_percentage != 100:
                 return False
             from apps.enrollments.models import LessonProgress
+
             lesson_progresses = LessonProgress.objects.filter(enrollment=enrollment)
             if not lesson_progresses.exists():
                 return False
-            avg_score = sum(lp.highest_quiz_score or 0 for lp in lesson_progresses) / len(lesson_progresses)
+            avg_score = sum(lp.highest_quiz_score or 0 for lp in lesson_progresses) / len(
+                lesson_progresses
+            )
             return avg_score >= self.minimum_score
 
         return False

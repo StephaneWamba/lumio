@@ -1,4 +1,5 @@
 """Assessments models: quizzes, questions, attempts, and scoring"""
+
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -228,7 +229,9 @@ class QuizAttempt(models.Model):
         ordering = ["-started_at"]
 
     def __str__(self):
-        return f"Attempt {self.attempt_number} - {self.lesson_progress} - {self.get_status_display()}"
+        return (
+            f"Attempt {self.attempt_number} - {self.lesson_progress} - {self.get_status_display()}"
+        )
 
 
 class AttemptAnswer(models.Model):

@@ -1,4 +1,5 @@
 """Media models: video storage, transcoding, HLS streams"""
+
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from apps.courses.models import Lesson

@@ -1,4 +1,5 @@
 """Cohorts app admin configuration"""
+
 from django.contrib import admin
 from .models import Cohort, CohortMember, DripSchedule
 

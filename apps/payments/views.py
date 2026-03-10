@@ -1,4 +1,5 @@
 """Payments app views"""
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -66,9 +67,7 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         if user.is_staff or user.role == "admin":
             return Payment.objects.all().select_related("user", "course")
         if user.role == "instructor":
-            return Payment.objects.filter(
-                course__instructor=user
-            ).select_related("user", "course")
+            return Payment.objects.filter(course__instructor=user).select_related("user", "course")
         # Students see only their own payments
         return Payment.objects.filter(user=user).select_related("user", "course")
 
@@ -242,9 +241,9 @@ class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
         if user.is_staff or user.role == "admin":
             return Invoice.objects.all().select_related("payment")
         if user.role == "instructor":
-            return Invoice.objects.filter(
-                payment__course__instructor=user
-            ).select_related("payment")
+            return Invoice.objects.filter(payment__course__instructor=user).select_related(
+                "payment"
+            )
         # Students see only their own invoices
         return Invoice.objects.filter(payment__user=user).select_related("payment")
 

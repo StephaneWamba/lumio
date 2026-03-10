@@ -1,4 +1,5 @@
 """Custom permission classes for role-based and object-level access control"""
+
 from rest_framework import permissions
 from .models import User
 
@@ -32,9 +33,7 @@ class IsAdmin(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return bool(
-            request.user
-            and request.user.is_authenticated
-            and request.user.role == User.ROLE_ADMIN
+            request.user and request.user.is_authenticated and request.user.role == User.ROLE_ADMIN
         )
 
 
@@ -58,10 +57,7 @@ class IsInstructorOrReadOnly(permissions.BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and (
-                request.user.role == User.ROLE_INSTRUCTOR
-                or request.user.is_superuser
-            )
+            and (request.user.role == User.ROLE_INSTRUCTOR or request.user.is_superuser)
         )
 
 

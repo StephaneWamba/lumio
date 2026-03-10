@@ -1,4 +1,5 @@
 """Assessments app admin configuration"""
+
 from django.contrib import admin
 from .models import Quiz, Question, QuestionOption, QuizAttempt, AttemptAnswer
 
@@ -37,7 +38,14 @@ class QuestionOptionAdmin(admin.ModelAdmin):
 class QuizAttemptAdmin(admin.ModelAdmin):
     """Admin for quiz attempts"""
 
-    list_display = ["lesson_progress", "quiz", "attempt_number", "status", "percentage_score", "is_passed"]
+    list_display = [
+        "lesson_progress",
+        "quiz",
+        "attempt_number",
+        "status",
+        "percentage_score",
+        "is_passed",
+    ]
     list_filter = ["status", "is_passed", "submitted_at"]
     search_fields = ["lesson_progress__enrollment__student__email", "quiz__title"]
     readonly_fields = ["started_at", "submitted_at", "created_at", "updated_at"]
