@@ -71,6 +71,10 @@ dev = [
     "ipython",
 ]
 
+[tool.setuptools.packages.find]
+include = ["apps*", "config*"]
+exclude = ["terraform*", "*.tests*"]
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
