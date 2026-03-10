@@ -17,6 +17,7 @@ dependencies = [
     "drf-spectacular",
     "djangorestframework-simplejwt",
     "social-auth-app-django",
+    "gunicorn",
 
     # Permissions & Auth
     "django-guardian",
