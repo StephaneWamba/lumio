@@ -37,7 +37,6 @@ THIRD_PARTY_APPS = [
     "drf_spectacular",
     "guardian",
     "social_django",
-    "prometheus_client",
 ]
 
 LOCAL_APPS = [
@@ -65,7 +64,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "prometheus_client.django.middleware.PrometheusMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
