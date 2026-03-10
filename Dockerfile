@@ -22,8 +22,7 @@ COPY manage.py ./
 
 # Install dependencies with uv
 # --system avoids virtualenv overhead (Docker is already isolated)
-# --no-build-isolation prevents wheel build delays
-RUN uv pip install --system -e . --no-build-isolation --no-cache
+RUN uv pip install --system -e . --no-cache
 
 # Runtime stage - minimal image
 FROM python:3.12-slim

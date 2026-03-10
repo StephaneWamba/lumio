@@ -17,8 +17,8 @@ COPY apps ./apps
 COPY config ./config
 COPY manage.py ./
 
-# Install dependencies with uv (avoid wheel build delays with --no-build-isolation)
-RUN uv pip install --python /opt/venv/bin/python -e . --no-build-isolation --no-cache
+# Install dependencies with uv
+RUN uv pip install --python /opt/venv/bin/python -e . --no-cache
 
 # Runtime stage with FFmpeg
 FROM jrottenberg/ffmpeg:5.1-ubuntu2004
