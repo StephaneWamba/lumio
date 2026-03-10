@@ -192,8 +192,12 @@ REST_FRAMEWORK = {
 
 # Simple JWT
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(seconds=config("JWT_ACCESS_LIFETIME", default=900, cast=int)),
-    "REFRESH_TOKEN_LIFETIME": timedelta(seconds=config("JWT_REFRESH_LIFETIME", default=604800, cast=int)),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        seconds=config("JWT_ACCESS_LIFETIME", default=900, cast=int)
+    ),
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        seconds=config("JWT_REFRESH_LIFETIME", default=604800, cast=int)
+    ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",
