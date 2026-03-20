@@ -54,6 +54,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install FFmpeg
+        run: sudo apt-get install -y ffmpeg
+
       - name: Install uv
         run: pip install uv
 
@@ -85,6 +88,15 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           DJANGO_SETTINGS_MODULE: config.settings.test
           DJANGO_SECRET_KEY: ci-test-secret-key
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: eu-central-1
+          S3_RAW_BUCKET: lumio-raw-uploads
+          S3_PROCESSED_BUCKET: lumio-processed-media
+          S3_ASSETS_BUCKET: lumio-assets-674544924217
+          CLOUDFRONT_KEY_PAIR_ID: ${{ secrets.CLOUDFRONT_KEY_PAIR_ID }}
+          CLOUDFRONT_PRIVATE_KEY_B64: ${{ secrets.CLOUDFRONT_PRIVATE_KEY_B64 }}
+          CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -199,6 +211,8 @@ jobs:
                          -var="django_secret_key=${{ secrets.DJANGO_SECRET_KEY }}" \
                          -var="db_password=${{ secrets.DB_PASSWORD }}" \
                          -var="resend_api_key=${{ secrets.RESEND_API_KEY }}" \
+                         -var="cloudfront_key_pair_id=${{ secrets.CLOUDFRONT_KEY_PAIR_ID }}" \
+                         -var="cloudfront_private_key_b64=${{ secrets.CLOUDFRONT_PRIVATE_KEY_B64 }}" \
                          -out=tfplan
 
       - name: Terraform Apply

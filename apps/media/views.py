@@ -6,12 +6,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 import structlog
 
+from django.utils import timezone
+
 from apps.courses.models import Lesson
 from .models import VideoFile, CloudFrontSignedUrl
-from .serializers import (
-    VideoFileSerializer,
-    VideoUploadInitiateSerializer,
-)
+from .serializers import VideoFileSerializer, VideoUploadInitiateSerializer
+from .video_service import generate_presigned_upload_url, generate_cloudfront_signed_url
 
 logger = structlog.get_logger()
 
@@ -49,21 +49,27 @@ class VideoFileViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # TODO: Generate presigned upload URL via S3
-        # For now, return placeholder
-        logger.info(
-            "video_upload_initiated",
-            lesson_id=lesson_id,
-            file_name=file_name,
-            file_size=file_size,
-        )
+        result = generate_presigned_upload_url(lesson_id, file_name, file_size)
 
+        # Create VideoFile record to track transcoding state
+        video, _ = VideoFile.objects.get_or_create(
+            lesson=lesson,
+            defaults={"s3_key_raw": result["s3_key"], "file_size_bytes": file_size},
+        )
+        if video.s3_key_raw != result["s3_key"]:
+            video.s3_key_raw = result["s3_key"]
+            video.status = VideoFile.STATUS_PENDING
+            video.save(update_fields=["s3_key_raw", "status"])
+
+        logger.info("video_upload_initiated", lesson_id=lesson_id, s3_key=result["s3_key"])
         return Response(
             {
-                "message": "Video upload endpoint coming in Phase 3",
-                "error": "Presigned S3 upload not yet implemented",
+                "upload_url": result["upload_url"],
+                "s3_key": result["s3_key"],
+                "expires_in": result["expires_in"],
+                "video_id": video.id,
             },
-            status=status.HTTP_501_NOT_IMPLEMENTED,
+            status=status.HTTP_200_OK,
         )
 
     @action(detail=True, methods=["get"])
@@ -126,17 +132,13 @@ class SignedVideoUrlView(viewsets.ViewSet):
         except CloudFrontSignedUrl.DoesNotExist:
             pass
 
-        # TODO: Generate new signed CloudFront URL
-        logger.info(
-            "video_access_requested",
-            lesson_id=lesson_id,
-            user_id=request.user.id,
+        # Generate new signed CloudFront URL and cache it
+        signed_url, expires_at = generate_cloudfront_signed_url(video.s3_key_hls_manifest)
+
+        CloudFrontSignedUrl.objects.update_or_create(
+            lesson=lesson,
+            defaults={"signed_url": signed_url, "expires_at": expires_at},
         )
 
-        return Response(
-            {
-                "message": "Video URL endpoint coming in Phase 3",
-                "error": "CloudFront signed URLs not yet implemented",
-            },
-            status=status.HTTP_501_NOT_IMPLEMENTED,
-        )
+        logger.info("video_url_generated", lesson_id=lesson_id, user_id=request.user.id)
+        return Response({"signed_url": signed_url, "expires_at": expires_at})

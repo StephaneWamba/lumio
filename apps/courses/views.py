@@ -161,9 +161,29 @@ class LessonViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def request_video_upload_url(self, request, pk=None, section_id=None):
-        """Get presigned S3 URL for video upload (TODO: Phase 3)"""
-        # TODO: Generate presigned upload URL via S3
+        """Get presigned S3 URL for video upload"""
+        lesson = self.get_object()
+
+        # Only the course instructor may upload
+        if lesson.section.course.instructor != request.user:
+            raise PermissionDenied("Only the course instructor can upload videos.")
+
+        file_name = request.data.get("file_name", "video.mp4")
+        file_size = int(request.data.get("file_size_bytes", 0))
+
+        from apps.media.video_service import generate_presigned_upload_url
+        from apps.media.models import VideoFile
+
+        result = generate_presigned_upload_url(lesson.id, file_name, file_size)
+
+        VideoFile.objects.update_or_create(
+            lesson=lesson,
+            defaults={"s3_key_raw": result["s3_key"], "file_size_bytes": file_size,
+                      "status": VideoFile.STATUS_PENDING},
+        )
+
         return Response(
-            {"error": "Video upload coming in Phase 3"},
-            status=status.HTTP_501_NOT_IMPLEMENTED,
+            {"upload_url": result["upload_url"], "s3_key": result["s3_key"],
+             "expires_in": result["expires_in"]},
+            status=status.HTTP_200_OK,
         )

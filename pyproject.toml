@@ -33,6 +33,7 @@ dependencies = [
     "Pillow",
     "WeasyPrint",
     "boto3",
+    "cryptography",
 
     # Email
     "resend",

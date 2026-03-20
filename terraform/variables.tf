@@ -154,3 +154,14 @@ variable "resend_api_key" {
   type        = string
   sensitive   = true
 }
+
+variable "cloudfront_key_pair_id" {
+  description = "CloudFront public key ID for signed URLs"
+  type        = string
+}
+
+variable "cloudfront_private_key_b64" {
+  description = "CloudFront RSA private key (base64-encoded) for signing URLs"
+  type        = string
+  sensitive   = true
+}

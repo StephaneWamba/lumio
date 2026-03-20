@@ -360,7 +360,7 @@ resource "aws_cloudfront_distribution" "processed_media" {
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
 
     # Require signed URLs — responses to unsigned requests will be 403
-    trusted_key_groups = []
+    trusted_key_groups = ["fa06b1a0-d9ae-447e-a3c6-af196ff09f02"]
   }
 
   restrictions {
@@ -636,7 +636,9 @@ locals {
     { name = "S3_PROCESSED_BUCKET",    value = var.s3_processed_bucket_name },
     { name = "S3_ASSETS_BUCKET",       value = var.s3_assets_bucket_name },
     { name = "CLOUDFRONT_DOMAIN",      value = aws_cloudfront_distribution.processed_media.domain_name },
-    { name = "RESEND_API_KEY",         value = var.resend_api_key },
+    { name = "RESEND_API_KEY",              value = var.resend_api_key },
+    { name = "CLOUDFRONT_KEY_PAIR_ID",      value = var.cloudfront_key_pair_id },
+    { name = "CLOUDFRONT_PRIVATE_KEY_B64",  value = var.cloudfront_private_key_b64 },
   ]
 }
 
