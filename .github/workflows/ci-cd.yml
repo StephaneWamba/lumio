@@ -55,7 +55,10 @@ jobs:
           python-version: '3.12'
 
       - name: Install FFmpeg
-        run: sudo apt-get install -y --fix-missing ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --fix-missing ffmpeg
+        continue-on-error: true
 
       - name: Install uv
         run: pip install uv
