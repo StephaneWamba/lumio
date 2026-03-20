@@ -131,6 +131,11 @@ variable "certificate_arn" {
   default     = ""
 }
 
+variable "image_tag" {
+  description = "Docker image tag (git SHA from CI/CD)"
+  type        = string
+}
+
 # Secret values (should be stored in Secrets Manager)
 variable "django_secret_key" {
   description = "Django SECRET_KEY"
