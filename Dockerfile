@@ -16,12 +16,9 @@ COPY requirements.txt ./
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copy application source
-COPY pyproject.toml ./
 COPY apps ./apps
 COPY config ./config
 COPY manage.py ./
-
-RUN pip install --no-cache-dir -e . --no-deps
 
 # Runtime stage - minimal image
 FROM python:3.12-slim
@@ -36,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/venv /opt/venv
 
 ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=config.settings.production
