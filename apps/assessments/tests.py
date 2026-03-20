@@ -17,7 +17,7 @@ class QuizTests(TestCase):
 
     def setUp(self):
         """Set up test data"""
-        self.client = APIClient()
+        self.client: APIClient = APIClient()
         self.instructor = User.objects.create_user(
             email="instructor@example.com",
             name="Test Instructor",
@@ -73,7 +73,7 @@ class QuizAttemptTests(TestCase):
 
     def setUp(self):
         """Set up test data"""
-        self.client = APIClient()
+        self.client: APIClient = APIClient()
         self.instructor = User.objects.create_user(
             email="instructor@example.com",
             name="Test Instructor",

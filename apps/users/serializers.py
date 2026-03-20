@@ -96,14 +96,6 @@ class LoginSerializer(serializers.Serializer):
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Custom JWT token serializer with user data"""
 
-    def get_token(cls, user):
-        """Override to add custom claims"""
-        token = super().get_token(user)
-        token["email"] = user.email
-        token["role"] = user.role
-        token["name"] = user.name
-        return token
-
     @classmethod
     def get_token(cls, user):
         """Get tokens for user"""

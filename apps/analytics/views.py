@@ -192,7 +192,7 @@ class StudentProgressSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
             for item in snapshots
         ]
 
-        return Response(list(trend_data.values()))
+        return Response(trend_data)
 
 
 class EngagementMetricViewSet(viewsets.ReadOnlyModelViewSet):

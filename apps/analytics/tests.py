@@ -24,7 +24,7 @@ class CourseAnalyticsTests(TestCase):
 
     def setUp(self):
         """Set up test data"""
-        self.client = APIClient()
+        self.client: APIClient = APIClient()
         self.instructor = User.objects.create_user(
             email="instructor@example.com",
             name="Test Instructor",
@@ -94,7 +94,7 @@ class LessonAnalyticsTests(TestCase):
 
     def setUp(self):
         """Set up test data"""
-        self.client = APIClient()
+        self.client: APIClient = APIClient()
         self.instructor = User.objects.create_user(
             email="instructor@example.com",
             name="Test Instructor",
@@ -142,7 +142,7 @@ class QuizAnalyticsTests(TestCase):
 
     def setUp(self):
         """Set up test data"""
-        self.client = APIClient()
+        self.client: APIClient = APIClient()
         self.instructor = User.objects.create_user(
             email="instructor@example.com",
             name="Test Instructor",
@@ -195,7 +195,7 @@ class StudentProgressSnapshotTests(TestCase):
 
     def setUp(self):
         """Set up test data"""
-        self.client = APIClient()
+        self.client: APIClient = APIClient()
         self.instructor = User.objects.create_user(
             email="instructor@example.com",
             name="Test Instructor",
@@ -302,7 +302,7 @@ class EngagementMetricTests(TestCase):
 
     def setUp(self):
         """Set up test data"""
-        self.client = APIClient()
+        self.client: APIClient = APIClient()
         self.instructor = User.objects.create_user(
             email="instructor@example.com",
             name="Test Instructor",

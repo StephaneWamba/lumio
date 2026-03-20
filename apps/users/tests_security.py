@@ -86,7 +86,7 @@ class ThrottleSettingsTests(TestCase):
     def test_throttle_rates_defined(self):
         from django.conf import settings
 
-        rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
+        rates: dict = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
         required_scopes = [
             "auth_login",
             "auth_register",
