@@ -1,8 +1,5 @@
-# Django application Dockerfile - Optimized with uv
+# Django application Dockerfile
 FROM python:3.12-slim AS builder
-
-# Install uv (Rust-based package manager - 10-100x faster than pip)
-RUN pip install uv
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -14,19 +11,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy dependency files and source code
-COPY pyproject.toml uv.lock* ./
+# Install dependencies with pip (stable in GitHub Actions / BuildKit)
+COPY requirements.txt ./
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+# Copy application source
+COPY pyproject.toml ./
 COPY apps ./apps
 COPY config ./config
 COPY manage.py ./
 
-# Install dependencies with uv
-# Fix HTTP/2 deadlock in GitHub Actions + BuildKit (not a Django/uv issue)
-ENV UV_HTTP_MULTIPLEXING=false
-ENV UV_CONCURRENT_DOWNLOADS=4
-ENV UV_LINK_MODE=copy
-
-RUN uv pip install --system -e . --no-cache
+RUN pip install --no-cache-dir -e . --no-deps
 
 # Runtime stage - minimal image
 FROM python:3.12-slim
@@ -37,12 +32,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy venv from builder
+COPY --from=builder /opt/venv /opt/venv
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=config.settings.production
 
