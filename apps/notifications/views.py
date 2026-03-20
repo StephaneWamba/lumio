@@ -206,4 +206,5 @@ class NotificationLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NotificationLogSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     filterset_fields = ["notification", "log_type"]
-    ordering_fields = ["-created_at"]
+    ordering_fields = ["created_at"]
+    ordering = ["-created_at"]

@@ -123,8 +123,8 @@ def test_list_notification_preferences_unauthenticated():
 def test_list_notification_logs_as_student(student_client):
     """GET /api/v1/notifications/logs/ as student returns 403 (admin-only endpoint)."""
     resp = student_client.get("/api/v1/notifications/logs/")
-    assert resp.status_code in (403, 405), (
-        f"Expected 403/405 for student on admin-only logs, got {resp.status_code}: {resp.text}"
+    assert resp.status_code == 403, (
+        f"Expected 403 for student on admin-only logs, got {resp.status_code}: {resp.text}"
     )
 
 
