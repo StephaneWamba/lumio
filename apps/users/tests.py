@@ -52,7 +52,7 @@ class UserAuthenticationTests(TestCase):
     def test_user_registration_duplicate_email(self):
         """Test registration fails with duplicate email"""
         User.objects.create_user(
-            email="testuser@example.com",
+            email="wambstephane@gmail.com",
             name="Existing User",
             password="TestPassword123!",
         )
@@ -334,8 +334,7 @@ class PasswordResetTests(TestCase):
         """Test password reset confirm endpoint"""
         from apps.users.token_service import generate_token
 
-        user = User.objects.get(email="testuser@example.com")
-        token = generate_token("password_reset", user.id)
+        token = generate_token("password_reset", self.user.id)
         response = self.client.post(
             self.password_reset_confirm_url,
             {
