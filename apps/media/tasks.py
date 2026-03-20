@@ -125,7 +125,9 @@ def transcode_video(self, video_file_id: int) -> dict:
         video.s3_key_hls_manifest = master_key
         video.hls_variants = hls_keys
         video.error_message = None
-        video.save(update_fields=["status", "s3_key_hls_manifest", "hls_variants", "error_message"])
+        video.save(
+            update_fields=["status", "s3_key_hls_manifest", "hls_variants", "error_message"]
+        )
 
         logger.info("transcode_complete", lesson_id=lesson_id, master_key=master_key)
         return {"lesson_id": lesson_id, "master_key": master_key, "variants": hls_keys}

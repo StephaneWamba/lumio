@@ -88,7 +88,9 @@ class PasswordResetFlowTests(TestCase):
     @patch("apps.users.views.email_service")
     def test_reset_request_unknown_email_still_200(self, mock_email_service):
         """Unknown email returns 200 to prevent user enumeration."""
-        response = self.client.post(reverse("password_reset_request"), {"email": "unknown@test.com"})
+        response = self.client.post(
+            reverse("password_reset_request"), {"email": "unknown@test.com"}
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_email_service.send_password_reset_email.assert_not_called()
 
