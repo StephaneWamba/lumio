@@ -196,6 +196,8 @@ jobs:
           cd terraform
           terraform plan -var-file="environments/production.tfvars" \
                          -var="image_tag=${{ env.IMAGE_TAG }}" \
+                         -var="django_secret_key=${{ secrets.DJANGO_SECRET_KEY }}" \
+                         -var="db_password=${{ secrets.DB_PASSWORD }}" \
                          -out=tfplan
 
       - name: Terraform Apply

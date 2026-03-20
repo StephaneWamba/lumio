@@ -128,6 +128,7 @@ variable "domain_name" {
 variable "certificate_arn" {
   description = "ACM certificate ARN for HTTPS"
   type        = string
+  default     = ""
 }
 
 # Secret values (should be stored in Secrets Manager)
