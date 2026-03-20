@@ -636,6 +636,7 @@ locals {
     { name = "S3_PROCESSED_BUCKET",    value = var.s3_processed_bucket_name },
     { name = "S3_ASSETS_BUCKET",       value = var.s3_assets_bucket_name },
     { name = "CLOUDFRONT_DOMAIN",      value = aws_cloudfront_distribution.processed_media.domain_name },
+    { name = "RESEND_API_KEY",         value = var.resend_api_key },
   ]
 }
 

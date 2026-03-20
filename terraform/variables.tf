@@ -148,3 +148,9 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "resend_api_key" {
+  description = "Resend API key for transactional email"
+  type        = string
+  sensitive   = true
+}

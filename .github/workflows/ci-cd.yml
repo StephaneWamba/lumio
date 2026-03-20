@@ -198,6 +198,7 @@ jobs:
                          -var="image_tag=${{ env.IMAGE_TAG }}" \
                          -var="django_secret_key=${{ secrets.DJANGO_SECRET_KEY }}" \
                          -var="db_password=${{ secrets.DB_PASSWORD }}" \
+                         -var="resend_api_key=${{ secrets.RESEND_API_KEY }}" \
                          -out=tfplan
 
       - name: Terraform Apply
