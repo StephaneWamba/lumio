@@ -205,6 +205,16 @@ jobs:
           cd terraform
           terraform apply -auto-approve tfplan
 
+      - name: Run Django migrations
+        run: |
+          aws ecs run-task \
+            --cluster lumio \
+            --task-definition lumio-app \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=$(aws ec2 describe-subnets --filters Name=tag:Name,Values=lumio-production-private-* --query 'Subnets[0].SubnetId' --output text),securityGroups=$(aws ec2 describe-security-groups --filters Name=tag:Name,Values=lumio-production-app-sg --query 'SecurityGroups[0].GroupId' --output text),assignPublicIp=DISABLED}" \
+            --overrides '{"containerOverrides":[{"name":"lumio-app","command":["python","manage.py","migrate","--noinput"]}]}' \
+            --region ${{ env.AWS_REGION }}
+
       - name: Force ECS Deployment
         run: |
           aws ecs update-service --cluster lumio \

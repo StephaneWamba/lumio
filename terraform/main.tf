@@ -625,7 +625,11 @@ locals {
   shared_environment = [
     { name = "DJANGO_SETTINGS_MODULE", value = "config.settings.production" },
     { name = "DJANGO_SECRET_KEY",      value = var.django_secret_key },
-    { name = "DATABASE_URL",           value = "postgresql://lumio:${var.db_password}@${aws_db_instance.main.endpoint}/lumio" },
+    { name = "DB_HOST",                value = aws_db_instance.main.address },
+    { name = "DB_PORT",                value = "5432" },
+    { name = "DB_NAME",                value = "lumio" },
+    { name = "DB_USER",                value = "lumio" },
+    { name = "DB_PASSWORD",            value = var.db_password },
     { name = "REDIS_URL",              value = "redis://${aws_elasticache_cluster.main.cache_nodes[0].address}:6379/0" },
     { name = "AWS_REGION",             value = var.aws_region },
     { name = "S3_RAW_BUCKET",          value = var.s3_raw_bucket_name },
