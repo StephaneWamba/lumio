@@ -264,4 +264,8 @@ jobs:
 
 ## Current Phase
 
-**Phase 0** — Starting now.
+**Post-Phase-11 audit — implementing stubbed features.**
+
+All 151 integration tests pass against production. Major async features (Celery tasks,
+video pipeline, Stripe payments, email auth tokens, WeasyPrint certificates) are stubbed.
+See `docs/implementation-roadmap.md` for the full gap analysis and priority order.

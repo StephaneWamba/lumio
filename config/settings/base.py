@@ -322,3 +322,24 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_ALWAYS_EAGER = config("CELERY_ALWAYS_EAGER", default=False, cast=bool)
+
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    "drip_unlock_scanner": {
+        "task": "cohorts.scan_and_release_drip",
+        "schedule": crontab(minute=0),  # Hourly, on the hour
+    },
+    "certificate_completion_check": {
+        "task": "certificates.check_completions",
+        "schedule": crontab(minute="*/15"),  # Every 15 minutes
+    },
+    "email_reengagement_scanner": {
+        "task": "notifications.scan_reengagement",
+        "schedule": crontab(hour=9, minute=0),  # Daily at 09:00 UTC
+    },
+    "analytics_refresh": {
+        "task": "analytics.refresh_analytics_cache",
+        "schedule": crontab(minute=0),  # Hourly, on the hour
+    },
+}
