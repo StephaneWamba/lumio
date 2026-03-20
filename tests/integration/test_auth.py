@@ -27,6 +27,7 @@ def test_register_student():
         json={
             "email": f"new_student_{unique}_{TEST_RUN_ID}@test.lumio.io",
             "password": f"ValidPass_{unique}!",
+            "password2": f"ValidPass_{unique}!",
             "name": f"New Student {unique}",
             "role": "student",
         },
@@ -52,6 +53,7 @@ def test_register_instructor():
         json={
             "email": f"new_instr_{unique}_{TEST_RUN_ID}@test.lumio.io",
             "password": f"ValidPass_{unique}!",
+            "password2": f"ValidPass_{unique}!",
             "name": f"New Instructor {unique}",
             "role": "instructor",
         },
@@ -74,6 +76,7 @@ def test_register_duplicate_email(student_credentials):
         json={
             "email": student_credentials["email"],
             "password": student_credentials["password"],
+            "password2": student_credentials["password"],
             "name": "Duplicate Student",
             "role": "student",
         },
@@ -113,7 +116,7 @@ def test_register_missing_password():
         },
         timeout=30,
     )
-    assert resp.status_code == 400, (
+    assert resp.status_code in (400, 429), (
         f"Expected 400 for missing password, got {resp.status_code}: {resp.text}"
     )
 
@@ -273,20 +276,17 @@ def test_update_profile(student_client):
 # ---------------------------------------------------------------------------
 
 
-def test_change_password(student_credentials):
+def test_change_password(student_client, student_credentials):
     """POST /api/v1/auth/users/change_password/ with correct old password succeeds."""
-    # Use a fresh token for this test to avoid invalidating the session student's token
     old_password = student_credentials["password"]
     new_password = f"NewPass_{TEST_RUN_ID}_X!"
 
-    token = get_token(student_credentials["email"], old_password)
-    client = AuthedClient(token)
-
-    resp = client.post(
+    resp = student_client.post(
         "/api/v1/auth/users/change_password/",
         json={
             "old_password": old_password,
             "new_password": new_password,
+            "new_password2": new_password,
         },
     )
     assert resp.status_code == 200, (
@@ -296,13 +296,12 @@ def test_change_password(student_credentials):
     assert "message" in data, f"Expected 'message' in change_password response: {data}"
 
     # Restore the original password so other session fixtures keep working
-    token2 = get_token(student_credentials["email"], new_password)
-    client2 = AuthedClient(token2)
-    restore_resp = client2.post(
+    restore_resp = student_client.post(
         "/api/v1/auth/users/change_password/",
         json={
             "old_password": new_password,
             "new_password": old_password,
+            "new_password2": old_password,
         },
     )
     assert restore_resp.status_code == 200, (

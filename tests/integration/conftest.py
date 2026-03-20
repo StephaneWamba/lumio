@@ -47,6 +47,7 @@ def register_user(email: str, password: str, role: str = "student") -> dict:
         json={
             "email": email,
             "password": password,
+            "password2": password,
             "name": f"Test {role.capitalize()} {TEST_RUN_ID}",
             "role": role,
         },
@@ -146,19 +147,41 @@ class AuthedClient:
 
 @pytest.fixture(scope="session")
 def student_credentials() -> dict:
-    """Register a student once for the whole test session and return credentials."""
-    email = f"student_{TEST_RUN_ID}@test.lumio.io"
-    password = f"TestPass_{TEST_RUN_ID}_S!"
-    user = register_user(email, password, role="student")
+    """Return student credentials.
+
+    If LUMIO_TEST_STUDENT_EMAIL / LUMIO_TEST_STUDENT_PASSWORD are set, reuse
+    those pre-existing accounts (avoids register throttle in production).
+    Otherwise register a fresh account.
+    """
+    import os
+    email = os.environ.get("LUMIO_TEST_STUDENT_EMAIL", f"student_{TEST_RUN_ID}@test.lumio.io")
+    password = os.environ.get("LUMIO_TEST_STUDENT_PASSWORD", f"TestPass_{TEST_RUN_ID}_S!")
+    if not os.environ.get("LUMIO_TEST_STUDENT_EMAIL"):
+        user = register_user(email, password, role="student")
+    else:
+        # Account already exists — just fetch profile via login
+        token = get_token(email, password)
+        resp = requests.get(api("/api/v1/auth/users/me/"), headers={"Authorization": f"Bearer {token}"}, timeout=30)
+        user = resp.json() if resp.status_code == 200 else {}
     return {"email": email, "password": password, "user": user}
 
 
 @pytest.fixture(scope="session")
 def instructor_credentials() -> dict:
-    """Register an instructor once for the whole test session and return credentials."""
-    email = f"instructor_{TEST_RUN_ID}@test.lumio.io"
-    password = f"TestPass_{TEST_RUN_ID}_I!"
-    user = register_user(email, password, role="instructor")
+    """Return instructor credentials.
+
+    If LUMIO_TEST_INSTRUCTOR_EMAIL / LUMIO_TEST_INSTRUCTOR_PASSWORD are set,
+    reuse those pre-existing accounts. Otherwise register a fresh account.
+    """
+    import os
+    email = os.environ.get("LUMIO_TEST_INSTRUCTOR_EMAIL", f"instructor_{TEST_RUN_ID}@test.lumio.io")
+    password = os.environ.get("LUMIO_TEST_INSTRUCTOR_PASSWORD", f"TestPass_{TEST_RUN_ID}_I!")
+    if not os.environ.get("LUMIO_TEST_INSTRUCTOR_EMAIL"):
+        user = register_user(email, password, role="instructor")
+    else:
+        token = get_token(email, password)
+        resp = requests.get(api("/api/v1/auth/users/me/"), headers={"Authorization": f"Bearer {token}"}, timeout=30)
+        user = resp.json() if resp.status_code == 200 else {}
     return {"email": email, "password": password, "user": user}
 
 
