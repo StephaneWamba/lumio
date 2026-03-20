@@ -67,10 +67,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         """Check instructor permission"""
         if serializer.instance.instructor != self.request.user:
-            return Response(
-                {"error": "You can only edit your own courses"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            raise PermissionDenied("You can only edit your own courses")
         serializer.save()
         logger.info("course_updated", course_id=serializer.instance.id)
 
@@ -128,10 +125,7 @@ class SectionViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         """Check instructor permission"""
         if serializer.instance.course.instructor != self.request.user:
-            return Response(
-                {"error": "You can only edit sections in your own courses"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            raise PermissionDenied("You can only edit sections in your own courses")
         serializer.save()
         logger.info("section_updated", section_id=serializer.instance.id)
 
@@ -161,10 +155,7 @@ class LessonViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         """Check instructor permission"""
         if serializer.instance.section.course.instructor != self.request.user:
-            return Response(
-                {"error": "You can only edit lessons in your own courses"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            raise PermissionDenied("You can only edit lessons in your own courses")
         serializer.save()
         logger.info("lesson_updated", lesson_id=serializer.instance.id)
 

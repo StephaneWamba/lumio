@@ -11,7 +11,7 @@ import structlog
 
 from apps.enrollments.models import Enrollment, LessonProgress
 from apps.users.models import User
-from apps.users.permissions import IsInstructor
+from apps.users.permissions import IsInstructor, IsInstructorOrReadOnly
 from .models import Quiz, Question, QuestionOption, QuizAttempt, AttemptAnswer
 from .serializers import (
     QuizListSerializer,
@@ -32,7 +32,7 @@ class QuizViewSet(viewsets.ModelViewSet):
         # Custom actions (start_attempt) are open to authenticated users
         if self.action in ("start_attempt",) or self.request.method in SAFE_METHODS:
             return [IsAuthenticated()]
-        return [IsAuthenticated(), IsInstructor()]
+        return [IsAuthenticated(), IsInstructorOrReadOnly()]
 
     def get_queryset(self):
         """Filter quizzes by course enrollment"""

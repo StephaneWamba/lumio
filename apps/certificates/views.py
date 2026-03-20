@@ -57,7 +57,7 @@ class CertificateAwardViewSet(viewsets.ModelViewSet):
 
     queryset = CertificateAward.objects.all()
     serializer_class = CertificateAwardSerializer
-    permission_classes = [IsAuthenticated, IsInstructor]
+    permission_classes = [IsAuthenticated, IsInstructorOrReadOnly]
 
     def get_queryset(self):
         """Filter awards by instructor ownership"""
