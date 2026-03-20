@@ -17,16 +17,13 @@ COPY apps ./apps
 COPY config ./config
 COPY manage.py ./
 
-# Runtime stage with FFmpeg
-FROM jrottenberg/ffmpeg:5.1-ubuntu2004
+# Runtime stage: python:3.12-slim + ffmpeg (avoids PPA issues on Ubuntu 20.04)
+FROM python:3.12-slim
 
-# Install Python 3.12 (deadsnakes PPA for Ubuntu 20.04) and runtime deps
-RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y --no-install-recommends \
-        python3.12 \
-        libpq5 \
-        curl \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libpq5 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/venv /opt/venv
