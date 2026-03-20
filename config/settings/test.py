@@ -27,9 +27,18 @@ CACHES = {
 # Celery eager for tests
 CELERY_TASK_ALWAYS_EAGER = True
 
-# Disable throttling in tests
+# Disable throttling in tests — keep rate keys to avoid ImproperlyConfigured
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []  # noqa: F821
-REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {}  # noqa: F821
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F821
+    "anon": "10000/min",
+    "user": "10000/min",
+    "auth_login": "10000/min",
+    "auth_register": "10000/min",
+    "password_reset": "10000/min",
+    "token_refresh": "10000/min",
+    "presigned_url": "10000/min",
+    "quiz_submit": "10000/min",
+}
 
 # Disable Sentry for tests
 SENTRY_DSN = ""
