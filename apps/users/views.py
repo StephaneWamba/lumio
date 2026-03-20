@@ -28,6 +28,9 @@ from .serializers import (
 )
 import structlog
 
+from . import email_service
+from .token_service import generate_token, consume_token
+
 logger = structlog.get_logger()
 
 
@@ -58,7 +61,8 @@ class RegisterView(APIView):
             role=user.role,
         )
 
-        # TODO: Send email verification link
+        token = generate_token("email_verify", user.id)
+        email_service.send_verification_email(user.email, user.name, token)
 
         return Response(
             {
@@ -260,14 +264,18 @@ class PasswordResetRequestView(APIView):
 
     def post(self, request):
         """Send password reset email"""
-        serializer = PasswordResetRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        email = request.data.get("email", "")
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Return 200 regardless to prevent user enumeration
+            return Response(
+                {"message": "If this email exists, a password reset link will be sent."},
+                status=status.HTTP_200_OK,
+            )
 
-        email = serializer.validated_data["email"]
-        user = User.objects.get(email=email)
-
-        # TODO: Generate reset token and send via Resend
+        token = generate_token("password_reset", user.id)
+        email_service.send_password_reset_email(user.email, user.name, token)
         logger.info("password_reset_requested", user_id=user.id, email=email)
 
         return Response(
@@ -287,8 +295,22 @@ class PasswordResetConfirmView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # TODO: Validate token and reset password
-        logger.info("password_reset_confirmed")
+        token = serializer.validated_data["token"]
+        user_id = consume_token("password_reset", token)
+        if user_id is None:
+            return Response(
+                {"error": "Invalid or expired token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        logger.info("password_reset_confirmed", user_id=user.id)
 
         return Response(
             {"message": "Password reset successfully."},
@@ -307,8 +329,21 @@ class EmailVerificationView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # TODO: Validate token and mark email as verified
-        logger.info("email_verified")
+        token = serializer.validated_data["token"]
+        user_id = consume_token("email_verify", token)
+        if user_id is None:
+            return Response(
+                {"error": "Invalid or expired token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.mark_email_as_verified()
+        logger.info("email_verified", user_id=user.id)
 
         return Response(
             {"message": "Email verified successfully."},

@@ -305,6 +305,7 @@ CLOUDFRONT_PRIVATE_KEY_B64 = config("CLOUDFRONT_PRIVATE_KEY_B64", default="")
 
 # Resend (Email)
 RESEND_API_KEY = config("RESEND_API_KEY", default="")
+FRONTEND_URL = config("FRONTEND_URL", default="https://lumio.io")
 
 # Stripe
 STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
