@@ -20,12 +20,13 @@ COPY manage.py ./
 # Runtime stage with FFmpeg
 FROM jrottenberg/ffmpeg:5.1-ubuntu2004
 
-# Install Python and runtime deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 \
-    python3.12-venv \
-    libpq5 \
-    curl \
+# Install Python 3.12 (deadsnakes PPA for Ubuntu 20.04) and runtime deps
+RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        python3.12 \
+        libpq5 \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/venv /opt/venv
