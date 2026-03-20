@@ -27,6 +27,10 @@ CACHES = {
 # Celery eager for tests
 CELERY_TASK_ALWAYS_EAGER = True
 
+# Disable throttling in tests
+REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []  # noqa: F821
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {}  # noqa: F821
+
 # Disable Sentry for tests
 SENTRY_DSN = ""
 
