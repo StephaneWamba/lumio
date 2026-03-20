@@ -1,9 +1,9 @@
 """Tests for cohorts Celery tasks — drip unlock scanner."""
 
-import pytest
 from datetime import timedelta
-from django.utils import timezone
+
 from django.test import TestCase
+from django.utils import timezone
 
 from apps.users.models import User
 from apps.courses.models import Course, Section, Lesson
@@ -69,6 +69,7 @@ class ScanAndReleaseDripTaskTests(TestCase):
         )
 
         from apps.cohorts.tasks import scan_and_release_drip
+
         scan_and_release_drip()
 
         schedule.refresh_from_db()
@@ -86,6 +87,7 @@ class ScanAndReleaseDripTaskTests(TestCase):
         )
 
         from apps.cohorts.tasks import scan_and_release_drip
+
         scan_and_release_drip()
 
         schedule.refresh_from_db()
@@ -104,6 +106,7 @@ class ScanAndReleaseDripTaskTests(TestCase):
         )
 
         from apps.cohorts.tasks import scan_and_release_drip
+
         scan_and_release_drip()
 
         schedule.refresh_from_db()
@@ -125,6 +128,7 @@ class ScanAndReleaseDripTaskTests(TestCase):
         )
 
         from apps.cohorts.tasks import scan_and_release_drip
+
         result = scan_and_release_drip()
 
         self.assertIsInstance(result, dict)

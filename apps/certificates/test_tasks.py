@@ -41,7 +41,7 @@ class CheckCompletionsTaskTests(TestCase):
         )
 
     def test_creates_certificate_for_completed_enrollment(self):
-        """Enrollment at 100% with no cert → task creates EarnedCertificate."""
+        """Enrollment at 100% with no cert — task creates EarnedCertificate."""
         enrollment = Enrollment.objects.create(
             student=self.student,
             course=self.course,
@@ -50,6 +50,7 @@ class CheckCompletionsTaskTests(TestCase):
         )
 
         from apps.certificates.tasks import check_completions
+
         check_completions()
 
         self.assertTrue(
@@ -73,13 +74,14 @@ class CheckCompletionsTaskTests(TestCase):
         )
 
         from apps.certificates.tasks import check_completions
+
         check_completions()
 
         count = EarnedCertificate.objects.filter(enrollment=enrollment).count()
         self.assertEqual(count, 1, "Should not create a duplicate certificate")
 
     def test_does_not_create_certificate_for_incomplete_enrollment(self):
-        """Enrollment below 100% → no certificate created."""
+        """Enrollment below 100% — no certificate created."""
         enrollment = Enrollment.objects.create(
             student=self.student,
             course=self.course,
@@ -87,6 +89,7 @@ class CheckCompletionsTaskTests(TestCase):
         )
 
         from apps.certificates.tasks import check_completions
+
         check_completions()
 
         self.assertFalse(
@@ -116,6 +119,7 @@ class CheckCompletionsTaskTests(TestCase):
         )
 
         from apps.certificates.tasks import check_completions
+
         check_completions()
 
         cert1 = EarnedCertificate.objects.get(enrollment=e1)

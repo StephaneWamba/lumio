@@ -1,7 +1,6 @@
 """Tests for notifications Celery tasks — re-engagement scanner."""
 
 from datetime import timedelta
-from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -52,6 +51,7 @@ class ScanReengagementTaskTests(TestCase):
         )
 
         from apps.notifications.tasks import scan_reengagement
+
         scan_reengagement()
 
         self.assertTrue(
@@ -68,6 +68,7 @@ class ScanReengagementTaskTests(TestCase):
         )
 
         from apps.notifications.tasks import scan_reengagement
+
         scan_reengagement()
 
         self.assertFalse(
@@ -84,6 +85,7 @@ class ScanReengagementTaskTests(TestCase):
         )
 
         from apps.notifications.tasks import scan_reengagement
+
         scan_reengagement()
 
         self.assertFalse(
@@ -92,7 +94,7 @@ class ScanReengagementTaskTests(TestCase):
         )
 
     def test_does_not_notify_student_with_no_access_date(self):
-        """Enrollment with null last_accessed_at is not targeted (no activity recorded)."""
+        """Enrollment with null last_accessed_at is skipped (no activity recorded)."""
         student = User.objects.create_user(
             email="noaccess@notif-tasks.com",
             name="No Access Student",
@@ -107,6 +109,7 @@ class ScanReengagementTaskTests(TestCase):
         )
 
         from apps.notifications.tasks import scan_reengagement
+
         scan_reengagement()
 
         self.assertFalse(
@@ -120,6 +123,7 @@ class ScanReengagementTaskTests(TestCase):
         self._make_student("inactive2@notif-tasks.com", 15, 60)
 
         from apps.notifications.tasks import scan_reengagement
+
         result = scan_reengagement()
 
         self.assertIsInstance(result, dict)

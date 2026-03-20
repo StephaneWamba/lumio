@@ -9,7 +9,6 @@ from apps.analytics.models import CourseAnalytics
 
 
 class RefreshAnalyticsCacheTaskTests(TestCase):
-
     def setUp(self):
         self.instructor = User.objects.create_user(
             email="instructor@analytics-tasks.com",
@@ -26,6 +25,7 @@ class RefreshAnalyticsCacheTaskTests(TestCase):
     def test_creates_analytics_record_if_missing(self):
         """Task creates CourseAnalytics for published course with no existing record."""
         from apps.analytics.tasks import refresh_analytics_cache
+
         refresh_analytics_cache()
 
         self.assertTrue(
@@ -44,6 +44,7 @@ class RefreshAnalyticsCacheTaskTests(TestCase):
         Enrollment.objects.create(student=student, course=self.course)
 
         from apps.analytics.tasks import refresh_analytics_cache
+
         refresh_analytics_cache()
 
         analytics = CourseAnalytics.objects.get(course=self.course)
@@ -52,6 +53,7 @@ class RefreshAnalyticsCacheTaskTests(TestCase):
     def test_returns_refreshed_count(self):
         """Task returns dict with count of courses refreshed."""
         from apps.analytics.tasks import refresh_analytics_cache
+
         result = refresh_analytics_cache()
 
         self.assertIsInstance(result, dict)
@@ -66,6 +68,7 @@ class RefreshAnalyticsCacheTaskTests(TestCase):
         )
 
         from apps.analytics.tasks import refresh_analytics_cache
+
         refresh_analytics_cache()
 
         self.assertFalse(
