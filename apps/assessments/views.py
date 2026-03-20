@@ -29,7 +29,8 @@ class QuizViewSet(viewsets.ModelViewSet):
     """Quiz management — instructors can create/update/delete, students read-only"""
 
     def get_permissions(self):
-        if self.request.method in SAFE_METHODS:
+        # Custom actions (start_attempt) are open to authenticated users
+        if self.action in ("start_attempt",) or self.request.method in SAFE_METHODS:
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsInstructor()]
 
