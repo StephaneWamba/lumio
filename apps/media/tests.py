@@ -96,9 +96,8 @@ class VideoFileTests(TestCase):
                 "file_size_bytes": 1024000000,
             },
         )
-        # Currently returns 501 as S3 presigned URL is TODO
-        self.assertEqual(response.status_code, status.HTTP_501_NOT_IMPLEMENTED)
-        self.assertIn("error", response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("upload_url", response.data)
 
     def test_video_file_status(self):
         """Test video file status endpoint"""
@@ -237,6 +236,5 @@ class SignedVideoUrlTests(TestCase):
         )
         self.client.force_authenticate(user=self.student)
         response = self.client.get(reverse("signed-video-url-get-video-url", args=[self.lesson.id]))
-        # Currently returns 501 as CloudFront signed URL generation is TODO
-        self.assertEqual(response.status_code, status.HTTP_501_NOT_IMPLEMENTED)
-        self.assertIn("error", response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("signed_url", response.data)
