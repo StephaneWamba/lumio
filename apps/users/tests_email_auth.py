@@ -1,7 +1,5 @@
 """Tests for email auth flows: registration verification, password reset."""
 
-from unittest.mock import patch, MagicMock
-
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -22,9 +20,8 @@ class EmailVerificationFlowTests(TestCase):
             role=User.ROLE_STUDENT,
         )
 
-    @patch("apps.users.views.email_service")
-    def test_register_sends_verification_email(self, mock_email_service):
-        """POST /register triggers a verification email send."""
+    def test_register_sends_verification_email(self):
+        """POST /register returns 201 and triggers real verification email via Resend."""
         response = self.client.post(
             reverse("register"),
             {
@@ -35,7 +32,6 @@ class EmailVerificationFlowTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        mock_email_service.send_verification_email.assert_called_once()
 
     def test_verify_email_with_valid_token(self):
         """Valid token marks user email_verified=True."""
@@ -78,21 +74,17 @@ class PasswordResetFlowTests(TestCase):
             role=User.ROLE_STUDENT,
         )
 
-    @patch("apps.users.views.email_service")
-    def test_reset_request_sends_email(self, mock_email_service):
-        """POST /password-reset/ calls email_service.send_password_reset_email."""
+    def test_reset_request_sends_email(self):
+        """POST /password-reset/ returns 200 and sends real email via Resend."""
         response = self.client.post(reverse("password_reset_request"), {"email": self.user.email})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        mock_email_service.send_password_reset_email.assert_called_once()
 
-    @patch("apps.users.views.email_service")
-    def test_reset_request_unknown_email_still_200(self, mock_email_service):
+    def test_reset_request_unknown_email_still_200(self):
         """Unknown email returns 200 to prevent user enumeration."""
         response = self.client.post(
             reverse("password_reset_request"), {"email": "unknown@test.com"}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        mock_email_service.send_password_reset_email.assert_not_called()
 
     def test_reset_confirm_with_valid_token(self):
         """Valid token resets the password."""

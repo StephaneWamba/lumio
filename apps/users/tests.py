@@ -1,7 +1,5 @@
 """Tests for user authentication and permissions"""
 
-from unittest.mock import patch
-
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -28,8 +26,7 @@ class UserAuthenticationTests(TestCase):
             "role": User.ROLE_STUDENT,
         }
 
-    @patch("apps.users.views.email_service")
-    def test_user_registration(self, mock_email_service):
+    def test_user_registration(self):
         """Test user can register"""
         response = self.client.post(self.register_url, self.user_data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -316,8 +313,7 @@ class PasswordResetTests(TestCase):
         self.password_reset_url = reverse("password_reset_request")
         self.password_reset_confirm_url = reverse("password_reset_confirm")
 
-    @patch("apps.users.views.email_service")
-    def test_password_reset_request(self, mock_email_service):
+    def test_password_reset_request(self):
         """Test password reset request endpoint"""
         response = self.client.post(
             self.password_reset_url,
@@ -326,8 +322,7 @@ class PasswordResetTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.data)
 
-    @patch("apps.users.views.email_service")
-    def test_password_reset_request_nonexistent_email(self, mock_email_service):
+    def test_password_reset_request_nonexistent_email(self):
         """Test password reset request with non-existent email returns 200 (anti-enumeration)"""
         response = self.client.post(
             self.password_reset_url,
@@ -335,8 +330,7 @@ class PasswordResetTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @patch("apps.users.views.email_service")
-    def test_password_reset_confirm(self, mock_email_service):
+    def test_password_reset_confirm(self):
         """Test password reset confirm endpoint"""
         from apps.users.token_service import generate_token
 

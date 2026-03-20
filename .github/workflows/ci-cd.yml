@@ -101,6 +101,7 @@ jobs:
           CLOUDFRONT_KEY_PAIR_ID: ${{ secrets.CLOUDFRONT_KEY_PAIR_ID }}
           CLOUDFRONT_PRIVATE_KEY_B64: ${{ secrets.CLOUDFRONT_PRIVATE_KEY_B64 }}
           CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
