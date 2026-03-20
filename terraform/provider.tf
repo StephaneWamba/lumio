@@ -22,7 +22,6 @@ provider "aws" {
       Environment = var.environment
       Project     = "lumio"
       ManagedBy   = "terraform"
-      CreatedAt   = timestamp()
     }
   }
 }
