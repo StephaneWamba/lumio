@@ -7,7 +7,8 @@ DEBUG = False
 ENVIRONMENT = "production"
 
 # ── HTTPS ──────────────────────────────────────────────────────────────────
-SECURE_SSL_REDIRECT = True
+# ALB terminates SSL — container receives plain HTTP, so no redirect needed
+SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
@@ -36,9 +37,11 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # ── Allowed hosts ──────────────────────────────────────────────────────────
+# * is safe here — ALB + security groups restrict external access.
+# ECS task IPs (10.x.x.x) must be allowed for ALB health checks to pass.
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
-    default="api.lumio.io",
+    default="*",
     cast=Csv(),
 )
 
