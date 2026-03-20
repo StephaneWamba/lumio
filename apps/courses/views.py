@@ -178,12 +178,18 @@ class LessonViewSet(viewsets.ModelViewSet):
 
         VideoFile.objects.update_or_create(
             lesson=lesson,
-            defaults={"s3_key_raw": result["s3_key"], "file_size_bytes": file_size,
-                      "status": VideoFile.STATUS_PENDING},
+            defaults={
+                "s3_key_raw": result["s3_key"],
+                "file_size_bytes": file_size,
+                "status": VideoFile.STATUS_PENDING,
+            },
         )
 
         return Response(
-            {"upload_url": result["upload_url"], "s3_key": result["s3_key"],
-             "expires_in": result["expires_in"]},
+            {
+                "upload_url": result["upload_url"],
+                "s3_key": result["s3_key"],
+                "expires_in": result["expires_in"],
+            },
             status=status.HTTP_200_OK,
         )

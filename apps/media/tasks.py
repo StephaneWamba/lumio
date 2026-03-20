@@ -69,13 +69,26 @@ def transcode_video(self, video_file_id: int) -> dict:
                 segment_pattern = os.path.join(variant_dir, "seg%03d.ts")
 
                 cmd = [
-                    "ffmpeg", "-y", "-i", raw_path,
-                    "-vf", f"scale={variant['scale']}",
-                    "-c:v", "libx264", "-b:v", variant["bitrate"],
-                    "-c:a", "aac", "-b:a", variant["audio"],
-                    "-hls_time", "6",
-                    "-hls_list_size", "0",
-                    "-hls_segment_filename", segment_pattern,
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    raw_path,
+                    "-vf",
+                    f"scale={variant['scale']}",
+                    "-c:v",
+                    "libx264",
+                    "-b:v",
+                    variant["bitrate"],
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    variant["audio"],
+                    "-hls_time",
+                    "6",
+                    "-hls_list_size",
+                    "0",
+                    "-hls_segment_filename",
+                    segment_pattern,
                     variant_m3u8,
                 ]
                 logger.info("ffmpeg_start", variant=variant["name"], lesson_id=lesson_id)

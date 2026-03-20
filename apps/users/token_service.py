@@ -6,8 +6,8 @@ from django.core.cache import cache
 
 # TTLs in seconds
 _TTL = {
-    "email_verify": 24 * 60 * 60,   # 24 hours
-    "password_reset": 60 * 60,       # 1 hour
+    "email_verify": 24 * 60 * 60,  # 24 hours
+    "password_reset": 60 * 60,  # 1 hour
 }
 
 _PREFIX = "auth_token"

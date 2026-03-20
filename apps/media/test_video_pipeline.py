@@ -89,7 +89,9 @@ class PresignedUploadTests(TestCase):
             self.skipTest("AWS credentials not available")
 
         other = User.objects.create_user(
-            email="other@media-test.com", name="Other", password="pass",
+            email="other@media-test.com",
+            name="Other",
+            password="pass",
             role=User.ROLE_INSTRUCTOR,
         )
         self.client.force_authenticate(user=other)
@@ -211,10 +213,22 @@ class TranscodeVideoTaskTests(TestCase):
 
         subprocess.run(
             [
-                "ffmpeg", "-y",
-                "-f", "lavfi", "-i", "color=black:size=128x72:duration=1:rate=1",
-                "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
-                "-t", "1", "-c:v", "libx264", "-c:a", "aac",
+                "ffmpeg",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=black:size=128x72:duration=1:rate=1",
+                "-f",
+                "lavfi",
+                "-i",
+                "anullsrc=r=44100:cl=mono",
+                "-t",
+                "1",
+                "-c:v",
+                "libx264",
+                "-c:a",
+                "aac",
                 tmp_path,
             ],
             capture_output=True,

@@ -27,7 +27,12 @@ class EmailVerificationFlowTests(TestCase):
         """POST /register triggers a verification email send."""
         response = self.client.post(
             reverse("register"),
-            {"email": "new@test.com", "name": "New User", "password": "TestPass123!", "role": "student"},
+            {
+                "email": "new@test.com",
+                "name": "New User",
+                "password": "TestPass123!",
+                "role": "student",
+            },
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         mock_email_service.send_verification_email.assert_called_once()
