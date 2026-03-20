@@ -3,7 +3,6 @@ Django base settings for lumio project.
 Environment-specific overrides in staging.py and production.py
 """
 
-import os
 from datetime import timedelta
 from pathlib import Path
 from decouple import config, Csv
@@ -292,13 +291,13 @@ structlog.configure(
 AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
 AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
 AWS_REGION = config("AWS_REGION", default="us-east-1")
-AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="lumio-assets")
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="lumio-assets-674544924217")
 AWS_S3_SIGNATURE_VERSION = "s3v4"
 AWS_S3_ADDRESSING_STYLE = "virtual"
 
 S3_RAW_BUCKET = config("S3_RAW_BUCKET", default="lumio-raw-uploads")
 S3_PROCESSED_BUCKET = config("S3_PROCESSED_BUCKET", default="lumio-processed-media")
-S3_ASSETS_BUCKET = config("S3_ASSETS_BUCKET", default="lumio-assets")
+S3_ASSETS_BUCKET = config("S3_ASSETS_BUCKET", default="lumio-assets-674544924217")
 
 CLOUDFRONT_DOMAIN = config("CLOUDFRONT_DOMAIN", default="")
 CLOUDFRONT_KEY_PAIR_ID = config("CLOUDFRONT_KEY_PAIR_ID", default="")
