@@ -183,8 +183,6 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         lesson_progress.save()
 
         # Recalculate course progress percentage
-        from django.db.models import Count
-
         total_lessons = Lesson.objects.filter(section__course=enrollment.course).count()
         completed_lessons = LessonProgress.objects.filter(
             enrollment=enrollment,

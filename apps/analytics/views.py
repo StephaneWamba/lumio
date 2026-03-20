@@ -258,7 +258,7 @@ class EngagementMetricViewSet(viewsets.ReadOnlyModelViewSet):
             self.permission_denied(request)
 
         # Aggregate by metric type
-        from django.db.models import Sum, Count, Q
+        from django.db.models import Sum, Count
 
         metrics = (
             EngagementMetric.objects.filter(course=course)

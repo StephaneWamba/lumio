@@ -1,7 +1,5 @@
 """User authentication and profile views"""
 
-from django.contrib.auth import authenticate
-from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -14,8 +12,6 @@ from .models import User, InstructorProfile, CorporateManagerProfile
 from .throttles import (
     AuthLoginThrottle,
     AuthRegisterThrottle,
-    PasswordResetThrottle,
-    TokenRefreshThrottle,
 )
 from .serializers import (
     UserSerializer,

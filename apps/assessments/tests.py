@@ -9,7 +9,7 @@ from decimal import Decimal
 from apps.users.models import User
 from apps.courses.models import Course, Section, Lesson
 from apps.enrollments.models import Enrollment, LessonProgress
-from .models import Quiz, Question, QuestionOption, QuizAttempt, AttemptAnswer
+from .models import Quiz, Question, QuestionOption, QuizAttempt
 
 
 class QuizTests(TestCase):

@@ -1,10 +1,8 @@
 """Phase 11 — Security & Observability tests."""
 
-from unittest.mock import patch, MagicMock
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
-from rest_framework.test import APITestCase, APIClient
-from rest_framework import status
+from rest_framework.test import APITestCase
 
 User = get_user_model()
 

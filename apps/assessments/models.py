@@ -1,7 +1,6 @@
 """Assessments models: quizzes, questions, attempts, and scoring"""
 
 from django.db import models
-from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.courses.models import Lesson
 from apps.enrollments.models import LessonProgress

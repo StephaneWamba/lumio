@@ -5,11 +5,9 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
-from datetime import timedelta
-
 from apps.users.models import User, InstructorProfile
-from apps.courses.models import Course, Section, Lesson
-from apps.enrollments.models import Enrollment, LessonProgress
+from apps.courses.models import Course
+from apps.enrollments.models import Enrollment
 from .models import CertificateTemplate, CertificateAward, EarnedCertificate
 
 

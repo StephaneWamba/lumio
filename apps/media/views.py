@@ -4,14 +4,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-import boto3
 import structlog
 
 from apps.courses.models import Lesson
 from .models import VideoFile, CloudFrontSignedUrl
 from .serializers import (
     VideoFileSerializer,
-    CloudFrontSignedUrlSerializer,
     VideoUploadInitiateSerializer,
 )
 

@@ -10,14 +10,13 @@ import structlog
 
 from apps.courses.models import Course
 from apps.users.models import User
-from apps.enrollments.models import Enrollment, LessonProgress
+from apps.enrollments.models import Enrollment
 from .models import Cohort, CohortMember, DripSchedule
 from .serializers import (
     CohortListSerializer,
     CohortDetailSerializer,
     CohortMemberSerializer,
     DripScheduleSerializer,
-    JoinCohortSerializer,
 )
 
 logger = structlog.get_logger()

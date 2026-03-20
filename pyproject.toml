@@ -87,7 +87,7 @@ python_files = ["tests.py", "test_*.py", "*_tests.py"]
 addopts = "--cov=apps --cov-report=html --cov-report=term-missing --strict-markers -v"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
+    "integration: marks tests as integration tests against live API (use --no-cov)",
 ]
 
 [tool.coverage.run]

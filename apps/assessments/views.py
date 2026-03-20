@@ -10,7 +10,6 @@ from decimal import Decimal
 import structlog
 
 from apps.enrollments.models import Enrollment, LessonProgress
-from apps.courses.models import Lesson
 from apps.users.models import User
 from .models import Quiz, Question, QuestionOption, QuizAttempt, AttemptAnswer
 from .serializers import (
@@ -18,7 +17,6 @@ from .serializers import (
     QuizDetailSerializer,
     QuizAttemptListSerializer,
     QuizAttemptDetailSerializer,
-    StartQuizAttemptSerializer,
     SubmitQuizAttemptSerializer,
     AttemptAnswerSerializer,
 )
