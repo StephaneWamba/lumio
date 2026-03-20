@@ -205,6 +205,6 @@ class NotificationLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = NotificationLog.objects.all()
     serializer_class = NotificationLogSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
-    filterset_fields = ["notification", "log_type"]
+    filterset_fields = ["log_type"]
     ordering_fields = ["created_at"]
     ordering = ["-created_at"]
