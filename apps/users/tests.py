@@ -19,7 +19,7 @@ class UserAuthenticationTests(TestCase):
         self.token_url = reverse("token_obtain_pair")
 
         self.user_data = {
-            "email": "testuser@example.com",
+            "email": "wambstephane@gmail.com",
             "name": "Test User",
             "password": "TestPassword123!",
             "password2": "TestPassword123!",
@@ -306,7 +306,7 @@ class PasswordResetTests(TestCase):
         """Set up test client and create test user"""
         self.client = APIClient()
         self.user = User.objects.create_user(
-            email="testuser@example.com",
+            email="wambstephane@gmail.com",
             name="Test User",
             password="TestPassword123!",
         )
@@ -317,7 +317,7 @@ class PasswordResetTests(TestCase):
         """Test password reset request endpoint"""
         response = self.client.post(
             self.password_reset_url,
-            {"email": "testuser@example.com"},
+            {"email": "wambstephane@gmail.com"},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.data)
@@ -372,7 +372,7 @@ class EmailVerificationTests(TestCase):
         from apps.users.token_service import generate_token
 
         user = User.objects.create_user(
-            email="verify-legacy@example.com",
+            email="wambstephane@gmail.com",
             name="Verify User",
             password="TestPassword123!",
             role=User.ROLE_STUDENT,

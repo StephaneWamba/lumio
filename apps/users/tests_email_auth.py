@@ -14,7 +14,7 @@ class EmailVerificationFlowTests(TestCase):
     def setUp(self):
         self.client: APIClient = APIClient()
         self.user = User.objects.create_user(
-            email="verify@test.com",
+            email="wambstephane@gmail.com",
             name="Verify User",
             password="TestPass123!",
             role=User.ROLE_STUDENT,
@@ -25,7 +25,7 @@ class EmailVerificationFlowTests(TestCase):
         response = self.client.post(
             reverse("register"),
             {
-                "email": "new@test.com",
+                "email": "wambstephane@gmail.com",
                 "name": "New User",
                 "password": "TestPass123!",
                 "role": "student",
@@ -68,7 +68,7 @@ class PasswordResetFlowTests(TestCase):
     def setUp(self):
         self.client: APIClient = APIClient()
         self.user = User.objects.create_user(
-            email="reset@test.com",
+            email="wambstephane@gmail.com",
             name="Reset User",
             password="OldPass123!",
             role=User.ROLE_STUDENT,
