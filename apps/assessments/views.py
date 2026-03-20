@@ -2,7 +2,7 @@
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS  # noqa: F401
 from rest_framework.response import Response
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -11,6 +11,7 @@ import structlog
 
 from apps.enrollments.models import Enrollment, LessonProgress
 from apps.users.models import User
+from apps.users.permissions import IsInstructor
 from .models import Quiz, Question, QuestionOption, QuizAttempt, AttemptAnswer
 from .serializers import (
     QuizListSerializer,
@@ -24,10 +25,13 @@ from .serializers import (
 logger = structlog.get_logger()
 
 
-class QuizViewSet(viewsets.ReadOnlyModelViewSet):
-    """Quiz management (read-only for students)"""
+class QuizViewSet(viewsets.ModelViewSet):
+    """Quiz management — instructors can create/update/delete, students read-only"""
 
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        if self.request.method in SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsInstructor()]
 
     def get_queryset(self):
         """Filter quizzes by course enrollment"""

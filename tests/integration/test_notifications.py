@@ -96,8 +96,8 @@ def test_create_notification_template_as_instructor(instructor_client):
 
 
 def test_list_notification_preferences_as_student(student_client):
-    """GET /api/v1/notifications/preferences/ as student returns 200."""
-    resp = student_client.get("/api/v1/notifications/preferences/")
+    """GET /api/v1/notifications/preferences/my_preferences/ as student returns 200."""
+    resp = student_client.get("/api/v1/notifications/preferences/my_preferences/")
     assert resp.status_code == 200, (
         f"GET notification preferences returned {resp.status_code}: {resp.text}"
     )
@@ -108,8 +108,8 @@ def test_list_notification_preferences_as_student(student_client):
 
 
 def test_list_notification_preferences_unauthenticated():
-    """GET /api/v1/notifications/preferences/ without auth must return 401."""
-    resp = requests.get(api("/api/v1/notifications/preferences/"), timeout=15)
+    """GET /api/v1/notifications/preferences/my_preferences/ without auth must return 401."""
+    resp = requests.get(api("/api/v1/notifications/preferences/my_preferences/"), timeout=15)
     assert resp.status_code == 401, (
         f"Expected 401, got {resp.status_code}: {resp.text}"
     )
@@ -121,14 +121,10 @@ def test_list_notification_preferences_unauthenticated():
 
 
 def test_list_notification_logs_as_student(student_client):
-    """GET /api/v1/notifications/logs/ as student returns 200."""
+    """GET /api/v1/notifications/logs/ as student returns 403 (admin-only endpoint)."""
     resp = student_client.get("/api/v1/notifications/logs/")
-    assert resp.status_code == 200, (
-        f"GET notification logs returned {resp.status_code}: {resp.text}"
-    )
-    data = resp.json()
-    assert isinstance(data, (list, dict)), (
-        f"Unexpected response type for notification logs: {type(data)}"
+    assert resp.status_code == 403, (
+        f"Expected 403 for student on admin-only logs, got {resp.status_code}: {resp.text}"
     )
 
 

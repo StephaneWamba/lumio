@@ -62,10 +62,11 @@ def register_user(email: str, password: str, role: str = "student") -> dict:
     return data.get("user", data)
 
 
-def get_token(email: str, password: str) -> str:
-    """POST to login endpoint and return the access token string.
+def login(email: str, password: str) -> dict:
+    """POST to login endpoint once and return {"access": ..., "refresh": ...}.
 
-    Raises AssertionError if the server does not return 200 with an access token.
+    Single call — callers must not call this multiple times for the same user
+    to avoid exhausting the auth_login rate limit (5/min in production).
     """
     resp = requests.post(
         api("/api/v1/auth/login/"),
@@ -73,26 +74,21 @@ def get_token(email: str, password: str) -> str:
         timeout=30,
     )
     assert resp.status_code == 200, (
-        f"get_token failed for {email}: status={resp.status_code} body={resp.text}"
+        f"login failed for {email}: status={resp.status_code} body={resp.text}"
     )
     data = resp.json()
     assert "access" in data, f"No 'access' token in login response: {data}"
-    return data["access"]
+    return data
+
+
+def get_token(email: str, password: str) -> str:
+    """Return the access token. Thin wrapper around login()."""
+    return login(email, password)["access"]
 
 
 def get_refresh_token(email: str, password: str) -> str:
-    """Return the refresh token from a login call."""
-    resp = requests.post(
-        api("/api/v1/auth/login/"),
-        json={"email": email, "password": password},
-        timeout=30,
-    )
-    assert resp.status_code == 200, (
-        f"get_refresh_token failed for {email}: status={resp.status_code} body={resp.text}"
-    )
-    data = resp.json()
-    assert "refresh" in data, f"No 'refresh' token in login response: {data}"
-    return data["refresh"]
+    """Return the refresh token. Thin wrapper around login()."""
+    return login(email, password)["refresh"]
 
 
 # ---------------------------------------------------------------------------
@@ -159,10 +155,7 @@ def student_credentials() -> dict:
     if not os.environ.get("LUMIO_TEST_STUDENT_EMAIL"):
         user = register_user(email, password, role="student")
     else:
-        # Account already exists — just fetch profile via login
-        token = get_token(email, password)
-        resp = requests.get(api("/api/v1/auth/users/me/"), headers={"Authorization": f"Bearer {token}"}, timeout=30)
-        user = resp.json() if resp.status_code == 200 else {}
+        user = {}  # will be fetched via student_tokens fixture
     return {"email": email, "password": password, "user": user}
 
 
@@ -179,48 +172,46 @@ def instructor_credentials() -> dict:
     if not os.environ.get("LUMIO_TEST_INSTRUCTOR_EMAIL"):
         user = register_user(email, password, role="instructor")
     else:
-        token = get_token(email, password)
-        resp = requests.get(api("/api/v1/auth/users/me/"), headers={"Authorization": f"Bearer {token}"}, timeout=30)
-        user = resp.json() if resp.status_code == 200 else {}
+        user = {}  # will be fetched via instructor_tokens fixture
     return {"email": email, "password": password, "user": user}
 
 
 @pytest.fixture(scope="session")
-def student_client(student_credentials) -> AuthedClient:
+def student_tokens(student_credentials) -> dict:
+    """Login once and return both access + refresh tokens for the session student."""
+    tokens = login(student_credentials["email"], student_credentials["password"])
+    return tokens
+
+
+@pytest.fixture(scope="session")
+def instructor_tokens(instructor_credentials) -> dict:
+    """Login once and return both access + refresh tokens for the session instructor."""
+    tokens = login(instructor_credentials["email"], instructor_credentials["password"])
+    return tokens
+
+
+@pytest.fixture(scope="session")
+def student_client(student_tokens) -> AuthedClient:
     """Return an AuthedClient authenticated as the session student."""
-    token = get_token(
-        student_credentials["email"],
-        student_credentials["password"],
-    )
-    return AuthedClient(token)
+    return AuthedClient(student_tokens["access"])
 
 
 @pytest.fixture(scope="session")
-def instructor_client(instructor_credentials) -> AuthedClient:
+def instructor_client(instructor_tokens) -> AuthedClient:
     """Return an AuthedClient authenticated as the session instructor."""
-    token = get_token(
-        instructor_credentials["email"],
-        instructor_credentials["password"],
-    )
-    return AuthedClient(token)
+    return AuthedClient(instructor_tokens["access"])
 
 
 @pytest.fixture(scope="session")
-def student_refresh_token(student_credentials) -> str:
+def student_refresh_token(student_tokens) -> str:
     """Return the refresh token for the session student."""
-    return get_refresh_token(
-        student_credentials["email"],
-        student_credentials["password"],
-    )
+    return student_tokens["refresh"]
 
 
 @pytest.fixture(scope="session")
-def instructor_refresh_token(instructor_credentials) -> str:
+def instructor_refresh_token(instructor_tokens) -> str:
     """Return the refresh token for the session instructor."""
-    return get_refresh_token(
-        instructor_credentials["email"],
-        instructor_credentials["password"],
-    )
+    return instructor_tokens["refresh"]
 
 
 @pytest.fixture(scope="session")

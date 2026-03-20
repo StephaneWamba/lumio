@@ -2,9 +2,9 @@
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from apps.users.permissions import IsAdmin
+from apps.users.permissions import IsAdmin, IsInstructor
 from .models import (
     NotificationTemplate,
     NotificationPreference,
@@ -20,13 +20,17 @@ from .serializers import (
 )
 
 
-class NotificationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for notification templates"""
+class NotificationTemplateViewSet(viewsets.ModelViewSet):
+    """ViewSet for notification templates — instructors/admins can write"""
 
     queryset = NotificationTemplate.objects.all()
     serializer_class = NotificationTemplateSerializer
-    permission_classes = [IsAuthenticated]
     filterset_fields = ["is_active", "trigger"]
+
+    def get_permissions(self):
+        if self.request.method in SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsInstructor()]
 
 
 class NotificationPreferenceViewSet(viewsets.ViewSet):
