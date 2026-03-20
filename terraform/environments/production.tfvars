@@ -29,7 +29,7 @@ ecs_task_memory = 1024
 # S3 Buckets
 s3_raw_bucket_name       = "lumio-raw-uploads"
 s3_processed_bucket_name = "lumio-processed-media"
-s3_assets_bucket_name    = "lumio-assets"
+s3_assets_bucket_name    = "lumio-assets-674544924217"
 
 # CloudFront
 cloudfront_ttl = 86400
