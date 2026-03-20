@@ -86,7 +86,7 @@ class SearchQueryAdmin(admin.ModelAdmin):
     ]
     list_filter = ["timestamp", "result_count"]
     search_fields = ["query", "user__email", "user__name"]
-    readonly_fields = ["timestamp", "created_at"]
+    readonly_fields = ["timestamp"]
     fieldsets = (
         (
             "Query",

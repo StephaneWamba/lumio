@@ -1,7 +1,7 @@
 """Enrollments and progress tracking models"""
 
 from django.db import models
-from django.contrib.postgres.fields import JSONField
+from django.db.models import JSONField
 from apps.users.models import User
 from apps.courses.models import Course, Lesson
 

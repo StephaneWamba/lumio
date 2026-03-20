@@ -23,7 +23,7 @@ class CourseAnalyticsAdmin(admin.ModelAdmin):
         "quiz_pass_rate",
         "last_updated",
     ]
-    list_filter = ["last_updated", "created_at"]
+    list_filter = ["last_updated"]
     search_fields = ["course__title"]
     readonly_fields = [
         "total_enrollments",
@@ -37,7 +37,6 @@ class CourseAnalyticsAdmin(admin.ModelAdmin):
         "total_views",
         "unique_viewers",
         "last_updated",
-        "created_at",
     ]
 
 
@@ -54,7 +53,7 @@ class LessonAnalyticsAdmin(admin.ModelAdmin):
     ]
     list_filter = ["last_updated"]
     search_fields = ["lesson__title"]
-    readonly_fields = ["last_updated", "created_at"]
+    readonly_fields = ["last_updated"]
 
 
 @admin.register(QuizAnalytics)
@@ -71,7 +70,7 @@ class QuizAnalyticsAdmin(admin.ModelAdmin):
     ]
     list_filter = ["last_updated"]
     search_fields = ["quiz__title"]
-    readonly_fields = ["last_updated", "created_at"]
+    readonly_fields = ["last_updated"]
 
 
 @admin.register(StudentProgressSnapshot)
