@@ -98,9 +98,14 @@ class StripePaymentIntentTests(TestCase):
         """When instructor is Stripe-onboarded, PaymentIntent has application_fee_amount set."""
         stripe.api_key = settings.STRIPE_SECRET_KEY
 
-        # Onboard the instructor via Stripe Connect
+        # Custom accounts get transfers capability immediately in test mode;
+        # Express accounts require the full onboarding flow before capability is active.
+        connect_account = stripe.Account.create(
+            type="custom",
+            country="US",
+            capabilities={"transfers": {"requested": True}},
+        )
         profile = InstructorProfile.objects.create(user=self.instructor)
-        connect_account = stripe.Account.create(type="express")
         profile.stripe_account_id = connect_account.id
         profile.stripe_onboarded = True
         profile.save()
@@ -112,13 +117,11 @@ class StripePaymentIntentTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         intent = stripe.PaymentIntent.retrieve(response.data["transaction_id"])
-        expected_fee = int(999 * settings.STRIPE_PLATFORM_SHARE_PCT / 100)  # 20% of 999
+        expected_fee = int(999 * settings.STRIPE_PLATFORM_SHARE_PCT / 100)  # 20% of $9.99
         self.assertEqual(intent.application_fee_amount, expected_fee)
-        self.assertEqual(
-            intent.transfer_data["destination"], connect_account.id
-        )
+        self.assertEqual(intent.transfer_data["destination"], connect_account.id)
 
-        # Cleanup
+        # Cleanup test account
         stripe.Account.delete(connect_account.id)
 
 

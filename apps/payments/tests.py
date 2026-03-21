@@ -167,7 +167,7 @@ class PaymentTests(TestCase):
         response = self.client.get(reverse("payment-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
-        self.assertEqual(response.data["results"][0]["user"], self.student.id)
+        self.assertEqual(response.data["results"][0]["user_name"], self.student.name)
 
     def test_initiate_payment_creates_stripe_intent(self):
         """Initiating a payment calls real Stripe and returns a client_secret."""
@@ -242,7 +242,7 @@ class PaymentTests(TestCase):
         response = self.client.get(reverse("payment-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
-        self.assertEqual(response.data["results"][0]["course"], self.course.id)
+        self.assertEqual(response.data["results"][0]["course_title"], self.course.title)
 
 
 class InvoiceTests(TestCase):
