@@ -36,6 +36,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = [
             "id",
+            "quiz",
             "question_type",
             "text",
             "explanation",

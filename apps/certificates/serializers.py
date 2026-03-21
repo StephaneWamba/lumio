@@ -12,6 +12,7 @@ class CertificateTemplateSerializer(serializers.ModelSerializer):
 
     course = CourseListSerializer(read_only=True)
     course_id = serializers.IntegerField(write_only=True)
+    name = serializers.CharField(source="title")
 
     class Meta:
         model = CertificateTemplate
@@ -19,7 +20,7 @@ class CertificateTemplateSerializer(serializers.ModelSerializer):
             "id",
             "course",
             "course_id",
-            "title",
+            "name",
             "description",
             "content",
             "institution_name",

@@ -38,8 +38,6 @@ def generate_presigned_upload_url(lesson_id: int, file_name: str, file_size_byte
         Params={
             "Bucket": settings.S3_RAW_BUCKET,
             "Key": s3_key,
-            "ContentType": "video/mp4",
-            "ContentLength": file_size_bytes,
         },
         ExpiresIn=3600,  # 1 hour to complete the upload
     )

@@ -379,8 +379,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
         return qs
 
     def create(self, request, *args, **kwargs):
-        options_data = request.data.pop("options", []) if isinstance(request.data, dict) else []
-        # Use mutable copy if needed
+        # Use mutable copy to avoid mutating request.data
         data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
         options_data = data.pop("options", [])
 
