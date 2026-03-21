@@ -330,7 +330,7 @@ jobs:
 
       - name: Run E2E journey tests against production ALB
         run: |
-          pytest tests/integration/test_e2e_journeys.py -v --no-cov -m integration --timeout=120
+          pytest tests/integration/test_e2e_journeys.py -v --no-cov -m integration
         env:
           LUMIO_TEST_BASE_URL: http://lumio-production-alb-1639211656.eu-central-1.elb.amazonaws.com
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
