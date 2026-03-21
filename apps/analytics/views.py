@@ -4,9 +4,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.core.cache import cache
 from django.db.models import Avg
 from django.utils import timezone
 from datetime import timedelta
+
+ANALYTICS_CACHE_TTL = 3600  # 1 hour
 
 from .models import (
     CourseAnalytics,
@@ -42,9 +45,19 @@ class CourseAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
 
     serializer_class = CourseAnalyticsSerializer
 
+    def retrieve(self, request, *args, **kwargs):
+        """Return cached analytics for a course (1h TTL)."""
+        cache_key = f"analytics:course:{kwargs.get('pk')}"
+        data = cache.get(cache_key)
+        if data is None:
+            response = super().retrieve(request, *args, **kwargs)
+            cache.set(cache_key, response.data, ANALYTICS_CACHE_TTL)
+            return response
+        return Response(data)
+
     @action(detail=True, methods=["post"])
     def recalculate(self, request, pk=None):
-        """Recalculate analytics for a course"""
+        """Recalculate analytics for a course and invalidate cache."""
         analytics = self.get_object()
 
         if request.user != analytics.course.instructor and not request.user.is_staff:
@@ -58,14 +71,10 @@ class CourseAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
         analytics.active_students = enrollments.filter(progress_percentage__gt=0).count()
         analytics.completed_students = enrollments.filter(progress_percentage=100).count()
 
-        # Calculate average and median progress
-        from django.db.models import Avg
-
         analytics.average_progress = (
             enrollments.aggregate(Avg("progress_percentage"))["progress_percentage__avg"] or 0
         )
 
-        # Calculate quiz stats
         quiz_avg = LessonProgress.objects.filter(
             enrollment__course=course,
             highest_quiz_score__isnull=False,
@@ -75,6 +84,9 @@ class CourseAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
             analytics.average_quiz_score = quiz_avg
 
         analytics.save()
+
+        # Invalidate cache so next retrieve reflects fresh data
+        cache.delete(f"analytics:course:{analytics.pk}")
 
         serializer = CourseAnalyticsSerializer(analytics)
         return Response(serializer.data)

@@ -1,9 +1,10 @@
 """Assessments models: quizzes, questions, attempts, and scoring"""
 
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.courses.models import Lesson
-from apps.enrollments.models import LessonProgress
+from apps.enrollments.models import Enrollment, LessonProgress
 
 
 class Quiz(models.Model):
@@ -109,6 +110,14 @@ class Question(models.Model):
         max_length=20,
         choices=Quiz.DIFFICULTY_CHOICES,
         default=Quiz.DIFFICULTY_MEDIUM,
+    )
+
+    # Concept tagging for adaptive quiz
+    concept_tags = ArrayField(
+        models.CharField(max_length=100),
+        default=list,
+        blank=True,
+        help_text="Concept tags for adaptive question selection (e.g. ['algebra', 'fractions'])",
     )
 
     # Ordering
@@ -293,3 +302,58 @@ class AttemptAnswer(models.Model):
 
     def __str__(self):
         return f"{self.attempt} → Q{self.question.order}"
+
+
+class AttemptConceptScore(models.Model):
+    """Per-concept score for a single quiz attempt."""
+
+    attempt = models.ForeignKey(
+        QuizAttempt,
+        on_delete=models.CASCADE,
+        related_name="concept_scores",
+    )
+    concept = models.CharField(max_length=100)
+    score_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Score percentage for this concept in this attempt (0–100)",
+    )
+
+    class Meta:
+        verbose_name = "Attempt Concept Score"
+        verbose_name_plural = "Attempt Concept Scores"
+        unique_together = [["attempt", "concept"]]
+
+    def __str__(self):
+        return f"{self.attempt} — {self.concept}: {self.score_pct}%"
+
+
+class EnrollmentConceptProfile(models.Model):
+    """Running-average concept performance for a student's enrollment."""
+
+    enrollment = models.ForeignKey(
+        Enrollment,
+        on_delete=models.CASCADE,
+        related_name="concept_profiles",
+    )
+    concept = models.CharField(max_length=100, db_index=True)
+    avg_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Running average score percentage for this concept (0–100)",
+    )
+    sample_count = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of attempts factored into avg_score",
+    )
+
+    class Meta:
+        verbose_name = "Enrollment Concept Profile"
+        verbose_name_plural = "Enrollment Concept Profiles"
+        unique_together = [["enrollment", "concept"]]
+        indexes = [
+            models.Index(fields=["enrollment", "avg_score"]),
+        ]
+
+    def __str__(self):
+        return f"{self.enrollment} — {self.concept}: {self.avg_score}%"

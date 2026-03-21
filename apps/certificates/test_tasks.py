@@ -99,11 +99,19 @@ class CheckCompletionsTaskTests(TestCase):
 
     def test_certificate_number_is_unique(self):
         """Each generated certificate has a unique certificate_number."""
-        student2 = User.objects.create_user(
-            email="wambstephane+2@gmail.com",
-            name="Student Two",
-            password="pass",
-            role=User.ROLE_STUDENT,
+        course2 = Course.objects.create(
+            instructor=self.instructor,
+            title="Cert Test Course 2",
+            is_published=True,
+        )
+        CertificateTemplate.objects.create(
+            course=course2,
+            title="Certificate of Completion",
+            content="Awarded to {student_name} for completing {course_title}.",
+        )
+        CertificateAward.objects.create(
+            course=course2,
+            condition=CertificateAward.CONDITION_COURSE_COMPLETED,
         )
         e1 = Enrollment.objects.create(
             student=self.student,
@@ -112,8 +120,8 @@ class CheckCompletionsTaskTests(TestCase):
             completed_at=timezone.now(),
         )
         e2 = Enrollment.objects.create(
-            student=student2,
-            course=self.course,
+            student=self.student,
+            course=course2,
             progress_percentage=100,
             completed_at=timezone.now(),
         )

@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 from decimal import Decimal
+from django.db import models
 from .models import Quiz, Question, QuestionOption, QuizAttempt, AttemptAnswer
 
 
@@ -41,6 +42,7 @@ class QuestionSerializer(serializers.ModelSerializer):
             "points",
             "difficulty",
             "order",
+            "concept_tags",
             "options",
         ]
         read_only_fields = ["id"]

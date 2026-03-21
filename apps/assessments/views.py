@@ -12,6 +12,7 @@ import structlog
 from apps.enrollments.models import Enrollment, LessonProgress
 from apps.users.models import User
 from apps.users.permissions import IsInstructorOrReadOnly
+from . import adaptive as adaptive_engine
 from .models import Quiz, Question, QuestionOption, QuizAttempt, AttemptAnswer
 from .serializers import (
     QuizListSerializer,
@@ -119,10 +120,20 @@ class QuizViewSet(viewsets.ModelViewSet):
             attempt_number=attempt_number,
         )
 
-        return Response(
-            QuizAttemptDetailSerializer(attempt).data,
-            status=status.HTTP_201_CREATED,
-        )
+        data = QuizAttemptDetailSerializer(attempt).data
+
+        # Adaptive question ordering (if enabled)
+        if quiz.adaptive_enabled:
+            ordered_questions = adaptive_engine.select_questions(quiz, enrollment, attempt_number)
+            from .serializers import QuestionSerializer
+            data["selected_questions"] = QuestionSerializer(ordered_questions, many=True).data
+        else:
+            from .serializers import QuestionSerializer
+            data["selected_questions"] = QuestionSerializer(
+                quiz.questions.all(), many=True
+            ).data
+
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class QuizAttemptViewSet(viewsets.ModelViewSet):
@@ -265,6 +276,13 @@ class QuizAttemptViewSet(viewsets.ModelViewSet):
             )
         lesson_progress.save()
 
+        # Compute per-concept scores and update enrollment concept profile
+        enrollment = attempt.lesson_progress.enrollment
+        concept_scores = adaptive_engine.compute_concept_scores(attempt)
+        if concept_scores:
+            adaptive_engine.save_concept_scores(attempt, concept_scores)
+            adaptive_engine.update_concept_profile(enrollment, concept_scores)
+
         logger.info(
             "quiz_attempt_submitted",
             student_id=request.user.id,
@@ -273,10 +291,13 @@ class QuizAttemptViewSet(viewsets.ModelViewSet):
             passed=attempt.is_passed,
         )
 
-        return Response(
-            QuizAttemptDetailSerializer(attempt).data,
-            status=status.HTTP_200_OK,
-        )
+        data = QuizAttemptDetailSerializer(attempt).data
+
+        # Surface weak concepts after failed attempt
+        if not attempt.is_passed:
+            data["weak_concepts"] = adaptive_engine.get_weak_concepts(enrollment)
+
+        return Response(data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def grade_answer(self, request, pk=None):
