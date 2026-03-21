@@ -6,6 +6,7 @@ import tempfile
 
 import boto3
 import structlog
+from botocore.config import Config
 from celery import shared_task
 from django.conf import settings
 from typing import Any
@@ -13,6 +14,14 @@ from typing import Any
 from .models import VideoFile
 
 logger = structlog.get_logger(__name__)
+
+# boto3 >= 1.35 sends ChecksumMode:ENABLED on HeadObject by default.
+# Objects uploaded via presigned URLs have no stored checksum, causing S3 to
+# return 400 Bad Request. Force "when_required" to restore pre-1.35 behaviour.
+_S3_CONFIG = Config(
+    request_checksum_calculation="when_required",
+    response_checksum_validation="when_required",
+)
 
 HLS_VARIANTS = [
     {"name": "480p", "scale": "854:480", "bitrate": "1000k", "audio": "128k"},
@@ -27,6 +36,7 @@ def _s3_client():
         region_name=settings.AWS_REGION,
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        config=_S3_CONFIG,
     )
 
 
