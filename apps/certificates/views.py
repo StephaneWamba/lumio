@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 import uuid
+import structlog
 
 from .models import CertificateTemplate, CertificateAward, EarnedCertificate
 from .serializers import (
@@ -20,6 +21,8 @@ from apps.courses.models import Course
 from apps.enrollments.models import Enrollment
 from apps.users.permissions import IsInstructorOrReadOnly
 from . import pdf_service, email_service
+
+logger = structlog.get_logger()
 
 
 class CertificateTemplateViewSet(viewsets.ModelViewSet):
