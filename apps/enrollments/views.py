@@ -9,6 +9,7 @@ import structlog
 
 from apps.courses.models import Course, Lesson
 from apps.users.models import User
+from apps.cohorts.models import DripSchedule, LessonUnlock
 from .models import Enrollment, ProgressEvent, LessonProgress
 from .serializers import (
     EnrollmentSerializer,
@@ -18,6 +19,29 @@ from .serializers import (
 )
 
 logger = structlog.get_logger()
+
+
+def _is_lesson_accessible(enrollment, lesson):
+    """
+    Return True if the student can access this lesson.
+
+    A lesson is gated only when a DripSchedule targets it for the student's cohort.
+    If no DripSchedule covers this lesson (free-form course), access is always allowed.
+    If a DripSchedule exists, a LessonUnlock record must also exist for this enrollment.
+    """
+    drip_exists = DripSchedule.objects.filter(
+        cohort__members__student=enrollment.student,
+        lesson=lesson,
+        is_active=True,
+    ).exists()
+
+    if not drip_exists:
+        return True  # Not drip-gated — free access
+
+    return LessonUnlock.objects.filter(
+        enrollment=enrollment,
+        lesson=lesson,
+    ).exists()
 
 
 class EnrollmentViewSet(viewsets.ModelViewSet):
@@ -114,6 +138,12 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        if not _is_lesson_accessible(enrollment, lesson):
+            return Response(
+                {"error": "This lesson has not been unlocked yet"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # Record progress event
         ProgressEvent.objects.create(
             student=request.user,
@@ -164,6 +194,12 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             return Response(
                 {"error": "Lesson not found"},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not _is_lesson_accessible(enrollment, lesson):
+            return Response(
+                {"error": "This lesson has not been unlocked yet"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         # Record progress event

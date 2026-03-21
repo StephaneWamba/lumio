@@ -211,3 +211,35 @@ class DripSchedule(models.Model):
         if not self.is_active or self.is_released:
             return False
         return timezone.now() >= self.scheduled_release_time
+
+
+class LessonUnlock(models.Model):
+    """Records that a lesson has been unlocked for a specific student via drip release."""
+
+    enrollment = models.ForeignKey(
+        Enrollment,
+        on_delete=models.CASCADE,
+        related_name="lesson_unlocks",
+    )
+    lesson = models.ForeignKey(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name="lesson_unlocks",
+    )
+    drip_schedule = models.ForeignKey(
+        DripSchedule,
+        on_delete=models.CASCADE,
+        related_name="lesson_unlocks",
+    )
+    unlocked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Lesson Unlock"
+        verbose_name_plural = "Lesson Unlocks"
+        unique_together = [("enrollment", "lesson")]
+        indexes = [
+            models.Index(fields=["enrollment", "lesson"]),
+        ]
+
+    def __str__(self):
+        return f"{self.enrollment.student.name} → {self.lesson.title} unlocked"

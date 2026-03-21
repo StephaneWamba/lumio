@@ -12,6 +12,7 @@ from apps.courses.models import Course
 from apps.users.models import User
 from apps.enrollments.models import Enrollment
 from .models import Cohort, CohortMember, DripSchedule
+from .unlock import create_lesson_unlocks_for_schedule
 from .serializers import (
     CohortListSerializer,
     CohortDetailSerializer,
@@ -169,23 +170,27 @@ class DripScheduleViewSet(viewsets.ModelViewSet):
         )
 
         released_count = 0
+        unlocks_created = 0
         for schedule in pending:
             if schedule.is_ready_to_release:
                 schedule.is_released = True
                 schedule.released_at = now
                 schedule.save()
+                unlocks_created += create_lesson_unlocks_for_schedule(schedule)
                 released_count += 1
 
                 logger.info(
                     "drip_content_released",
                     cohort_id=schedule.cohort.id,
                     drip_type=schedule.drip_type,
+                    unlocks_created=unlocks_created,
                 )
 
         return Response(
             {
                 "message": f"Released {released_count} pending drip schedules",
                 "released_count": released_count,
+                "unlocks_created": unlocks_created,
             }
         )
 
@@ -210,11 +215,13 @@ class DripScheduleViewSet(viewsets.ModelViewSet):
         schedule.is_released = True
         schedule.released_at = timezone.now()
         schedule.save()
+        unlocks_created = create_lesson_unlocks_for_schedule(schedule)
 
         logger.info(
             "drip_content_manually_released",
             cohort_id=schedule.cohort.id,
             schedule_id=schedule.id,
+            unlocks_created=unlocks_created,
         )
 
         return Response(
