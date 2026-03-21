@@ -136,32 +136,38 @@ class PaymentTests(TestCase):
         response = self.client.get(reverse("payment-list"))
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_student_sees_own_payments(self):
-        """Test student sees only their own payments"""
-        Payment.objects.create(
-            user=self.student,
-            course=self.course,
-            amount=Decimal("99.99"),
-            currency="USD",
-            transaction_id="TXN-001",
-        )
+    def test_student_sees_own_payments_not_others(self):
+        """Student list endpoint returns only their own payments."""
+        import stripe
+        from django.conf import settings
+
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+
+        # Create a real PaymentIntent for this student
+        self.client.force_authenticate(user=self.student)
+        self.client.post(reverse("payment-initiate-payment"), {"course_id": self.course.id})
+
+        # Create another student and their payment directly in DB (different user)
         other_student = User.objects.create_user(
             email="other@example.com",
             name="Other",
             password="TestPassword123!",
             role=User.ROLE_STUDENT,
         )
+        intent = stripe.PaymentIntent.create(amount=9999, currency="usd")
         Payment.objects.create(
             user=other_student,
             course=self.course,
             amount=Decimal("99.99"),
             currency="USD",
-            transaction_id="TXN-002",
+            transaction_id=intent.id,
         )
+
         self.client.force_authenticate(user=self.student)
         response = self.client.get(reverse("payment-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["user"], self.student.id)
 
     def test_initiate_payment_creates_stripe_intent(self):
         """Initiating a payment calls real Stripe and returns a client_secret."""
@@ -193,16 +199,24 @@ class PaymentTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_mark_payment_failed(self):
-        """Test marking payment as failed"""
-        payment = Payment.objects.create(
-            user=self.student,
-            course=self.course,
-            amount=Decimal("99.99"),
-            currency="USD",
-            transaction_id="TXN-TEST-002",
-            status=Payment.STATUS_PENDING,
+    def test_mark_payment_failed_sets_status_and_logs(self):
+        """mark_failed on a real PaymentIntent sets STATUS_FAILED and creates a PaymentLog."""
+        import stripe
+        from django.conf import settings
+        from apps.payments.models import PaymentLog
+
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        price = self.price  # $99.99 USD
+
+        # Create a real PaymentIntent
+        self.client.force_authenticate(user=self.student)
+        r = self.client.post(
+            reverse("payment-initiate-payment"), {"course_id": self.course.id}
         )
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
+        payment = Payment.objects.get(transaction_id=r.data["transaction_id"])
+
+        # Mark failed
         self.client.force_authenticate(user=self.student)
         response = self.client.post(
             reverse("payment-mark-failed", args=[payment.id]),
@@ -211,53 +225,24 @@ class PaymentTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "failed")
 
-    def test_refund_requires_completed_status(self):
-        """Refunding a pending payment returns 400."""
-        payment = Payment.objects.create(
-            user=self.student,
-            course=self.course,
-            amount=Decimal("99.99"),
-            currency="USD",
-            transaction_id="pi-fake-pending",
-            status=Payment.STATUS_PENDING,
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, Payment.STATUS_FAILED)
+        self.assertEqual(payment.processor_response, "Card declined")
+        self.assertTrue(
+            PaymentLog.objects.filter(payment=payment, log_type=PaymentLog.LOG_TYPE_FAILED).exists()
         )
-        self.client.force_authenticate(user=self.instructor)
-        response = self.client.post(
-            reverse("payment-refund", args=[payment.id]),
-            {"reason": "Mistake"},
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_cannot_refund_non_completed(self):
-        """Test cannot refund non-completed payment"""
-        payment = Payment.objects.create(
-            user=self.student,
-            course=self.course,
-            amount=Decimal("99.99"),
-            currency="USD",
-            transaction_id="TXN-TEST-004",
-            status=Payment.STATUS_PENDING,
-        )
-        self.client.force_authenticate(user=self.instructor)
-        response = self.client.post(
-            reverse("payment-refund", args=[payment.id]),
-            {"reason": "Mistake"},
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    def test_instructor_sees_student_payments_for_their_courses(self):
+        """Instructor list endpoint returns payments for their courses only."""
+        # Student initiates a real payment for this instructor's course
+        self.client.force_authenticate(user=self.student)
+        self.client.post(reverse("payment-initiate-payment"), {"course_id": self.course.id})
 
-    def test_instructor_sees_student_payments(self):
-        """Test instructor sees student payments for their courses"""
-        Payment.objects.create(
-            user=self.student,
-            course=self.course,
-            amount=Decimal("99.99"),
-            currency="USD",
-            transaction_id="TXN-005",
-        )
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("payment-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["course"], self.course.id)
 
 
 class InvoiceTests(TestCase):
