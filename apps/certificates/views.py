@@ -18,6 +18,7 @@ from .serializers import (
 from apps.courses.models import Course
 from apps.enrollments.models import Enrollment
 from apps.users.permissions import IsInstructorOrReadOnly, IsInstructor
+from . import pdf_service, email_service
 
 
 class CertificateTemplateViewSet(viewsets.ModelViewSet):
@@ -170,16 +171,25 @@ class EarnedCertificateViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def _create_certificate(self, enrollment, template):
-        """Create and render certificate for enrollment"""
+        """Render PDF via WeasyPrint, upload to S3, email student, persist record."""
         certificate_number = (
             f"CERT-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
         )
+        completion_date = timezone.now().strftime("%B %d, %Y")
 
-        # Render certificate content
         rendered_content = template.content.format(
             student_name=enrollment.student.name,
             course_title=enrollment.course.title,
-            completion_date=timezone.now().strftime("%B %d, %Y"),
+            completion_date=completion_date,
+        )
+
+        # Render PDF and upload to S3
+        pdf_s3_key = pdf_service.render_and_upload(
+            certificate_number=certificate_number,
+            student_name=enrollment.student.name,
+            course_title=enrollment.course.title,
+            completion_date=completion_date,
+            template=template,
         )
 
         certificate = EarnedCertificate.objects.create(
@@ -187,5 +197,16 @@ class EarnedCertificateViewSet(viewsets.ReadOnlyModelViewSet):
             template=template,
             certificate_number=certificate_number,
             rendered_content=rendered_content,
+            pdf_s3_key=pdf_s3_key,
         )
+
+        # Email student with PDF attached
+        email_service.send_certificate_email(
+            student_email=enrollment.student.email,
+            student_name=enrollment.student.name,
+            course_title=enrollment.course.title,
+            certificate_number=certificate_number,
+            pdf_s3_key=pdf_s3_key,
+        )
+
         return certificate

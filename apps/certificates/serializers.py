@@ -4,6 +4,7 @@ from rest_framework import serializers
 from .models import CertificateTemplate, CertificateAward, EarnedCertificate
 from apps.courses.serializers import CourseListSerializer
 from apps.users.serializers import UserSerializer
+from . import pdf_service  # noqa: F401 — used by EarnedCertificateDetailSerializer
 
 
 class CertificateTemplateSerializer(serializers.ModelSerializer):
@@ -57,18 +58,10 @@ class CertificateAwardSerializer(serializers.ModelSerializer):
 class EarnedCertificateListSerializer(serializers.ModelSerializer):
     """Serializer for listing earned certificates"""
 
-    student_name = serializers.CharField(
-        source="enrollment.student.name",
-        read_only=True,
-    )
-    course_title = serializers.CharField(
-        source="enrollment.course.title",
-        read_only=True,
-    )
-    course_id = serializers.IntegerField(
-        source="enrollment.course.id",
-        read_only=True,
-    )
+    student_name = serializers.CharField(source="enrollment.student.name", read_only=True)
+    course_title = serializers.CharField(source="enrollment.course.title", read_only=True)
+    course_id = serializers.IntegerField(source="enrollment.course.id", read_only=True)
+    pdf_url = serializers.SerializerMethodField()
 
     class Meta:
         model = EarnedCertificate
@@ -80,8 +73,14 @@ class EarnedCertificateListSerializer(serializers.ModelSerializer):
             "course_id",
             "issued_at",
             "is_revoked",
+            "pdf_url",
         ]
         read_only_fields = fields
+
+    def get_pdf_url(self, obj):
+        if obj.pdf_s3_key:
+            return pdf_service.generate_download_url(obj.pdf_s3_key)
+        return None
 
 
 class EarnedCertificateDetailSerializer(serializers.ModelSerializer):
@@ -96,6 +95,7 @@ class EarnedCertificateDetailSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     template = CertificateTemplateSerializer(read_only=True)
+    pdf_url = serializers.SerializerMethodField()
 
     class Meta:
         model = EarnedCertificate
@@ -110,12 +110,19 @@ class EarnedCertificateDetailSerializer(serializers.ModelSerializer):
             "is_revoked",
             "revoked_at",
             "revocation_reason",
+            "pdf_url",
             "created_at",
             "updated_at",
         ]
         read_only_fields = [
             "certificate_number",
             "rendered_content",
+            "pdf_url",
             "created_at",
             "updated_at",
         ]
+
+    def get_pdf_url(self, obj):
+        if obj.pdf_s3_key:
+            return pdf_service.generate_download_url(obj.pdf_s3_key)
+        return None

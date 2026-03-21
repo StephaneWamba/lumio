@@ -150,6 +150,14 @@ class EarnedCertificate(models.Model):
         help_text="Final certificate content with placeholders filled in"
     )
 
+    # PDF storage
+    pdf_s3_key = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="S3 key for the rendered PDF in the assets bucket",
+    )
+
     # Verification
     is_revoked = models.BooleanField(default=False)
     revoked_at = models.DateTimeField(blank=True, null=True)
