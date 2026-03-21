@@ -35,7 +35,6 @@ def send_verification_email(user_email: str, user_name: str, token: str) -> None
         logger.info("verification_email_sent", email=user_email)
     except Exception as exc:
         logger.error("verification_email_failed", email=user_email, error=str(exc))
-        raise
 
 
 def send_password_reset_email(user_email: str, user_name: str, token: str) -> None:
@@ -61,4 +60,3 @@ def send_password_reset_email(user_email: str, user_name: str, token: str) -> No
         logger.info("password_reset_email_sent", email=user_email)
     except Exception as exc:
         logger.error("password_reset_email_failed", email=user_email, error=str(exc))
-        raise
