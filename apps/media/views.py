@@ -10,6 +10,7 @@ from apps.courses.models import Lesson
 from .models import VideoFile, CloudFrontSignedUrl
 from .serializers import VideoFileSerializer, VideoUploadInitiateSerializer
 from .video_service import generate_presigned_upload_url, generate_cloudfront_signed_url
+from .tasks import transcode_video
 
 logger = structlog.get_logger()
 
@@ -69,6 +70,27 @@ class VideoFileViewSet(viewsets.ReadOnlyModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+    @action(detail=True, methods=["post"])
+    def trigger_transcode(self, request, pk=None):
+        """Trigger FFmpeg transcoding after frontend finishes S3 upload."""
+        video = self.get_object()
+
+        if video.lesson.section.course.instructor != request.user:
+            return Response(
+                {"error": "You can only transcode videos in your own courses"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if video.status == VideoFile.STATUS_COMPLETED:
+            return Response({"status": "already_completed"}, status=status.HTTP_200_OK)
+
+        if video.status == VideoFile.STATUS_PROCESSING:
+            return Response({"status": "already_processing"}, status=status.HTTP_200_OK)
+
+        transcode_video.delay(video.id)
+        logger.info("transcode_triggered", video_id=video.id, lesson_id=video.lesson.id)
+        return Response({"status": "queued", "video_id": video.id}, status=status.HTTP_202_ACCEPTED)
 
     @action(detail=True, methods=["get"])
     def status(self, request, pk=None):
