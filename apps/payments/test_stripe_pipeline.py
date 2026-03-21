@@ -269,7 +269,7 @@ class StripeConnectOnboardingTests(TestCase):
             self.skipTest("STRIPE_SECRET_KEY not configured")
 
         self.client.force_authenticate(user=self.instructor)
-        response = self.client.post(reverse("instructorprofile-onboard-stripe"))
+        response = self.client.post(reverse("instructor-profile-onboard-stripe"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("onboarding_url", response.data)
         self.assertTrue(response.data["onboarding_url"].startswith("https://connect.stripe.com/"))
