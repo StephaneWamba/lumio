@@ -179,10 +179,14 @@ class DripScheduleViewSet(viewsets.ModelViewSet):
         unlocks_created = 0
         for schedule in pending:
             if schedule.is_ready_to_release:
-                schedule.is_released = True
-                schedule.released_at = now
-                schedule.save()
-                unlocks_created += create_lesson_unlocks_for_schedule(schedule)
+                with transaction.atomic():
+                    schedule = DripSchedule.objects.select_for_update().get(pk=schedule.pk)
+                    if schedule.is_released:
+                        continue
+                    schedule.is_released = True
+                    schedule.released_at = now
+                    schedule.save()
+                    unlocks_created += create_lesson_unlocks_for_schedule(schedule)
                 released_count += 1
 
                 logger.info(
@@ -218,10 +222,17 @@ class DripScheduleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        schedule.is_released = True
-        schedule.released_at = timezone.now()
-        schedule.save()
-        unlocks_created = create_lesson_unlocks_for_schedule(schedule)
+        with transaction.atomic():
+            schedule = DripSchedule.objects.select_for_update().get(pk=schedule.pk)
+            if schedule.is_released:
+                return Response(
+                    {"error": "Content already released"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            schedule.is_released = True
+            schedule.released_at = timezone.now()
+            schedule.save()
+            unlocks_created = create_lesson_unlocks_for_schedule(schedule)
 
         logger.info(
             "drip_content_manually_released",

@@ -320,18 +320,20 @@ class StripeWebhookView(APIView):
         payment_id = intent.get("metadata", {}).get("payment_id")
         if not payment_id:
             return
-        try:
-            payment = Payment.objects.get(id=payment_id)
-        except Payment.DoesNotExist:
-            return
 
-        if payment.status == Payment.STATUS_FAILED:
-            return
+        with transaction.atomic():
+            try:
+                payment = Payment.objects.select_for_update().get(id=payment_id)
+            except Payment.DoesNotExist:
+                return
 
-        error = intent.get("last_payment_error", {}) or {}
-        payment.status = Payment.STATUS_FAILED
-        payment.processor_response = error.get("message", "Payment failed")
-        payment.save(update_fields=["status", "processor_response"])
+            if payment.status == Payment.STATUS_FAILED:
+                return
+
+            error = intent.get("last_payment_error", {}) or {}
+            payment.status = Payment.STATUS_FAILED
+            payment.processor_response = error.get("message", "Payment failed")
+            payment.save(update_fields=["status", "processor_response"])
 
         PaymentLog.objects.create(
             payment=payment,
@@ -345,20 +347,22 @@ class StripeWebhookView(APIView):
         intent_id = charge.get("payment_intent")
         if not intent_id:
             return
-        try:
-            payment = Payment.objects.get(transaction_id=intent_id)
-        except Payment.DoesNotExist:
-            return
 
-        if payment.is_refunded:
-            return
+        with transaction.atomic():
+            try:
+                payment = Payment.objects.select_for_update().get(transaction_id=intent_id)
+            except Payment.DoesNotExist:
+                return
 
-        refunded_cents = charge.get("amount_refunded", 0)
-        payment.is_refunded = True
-        payment.refunded_amount = Decimal(str(refunded_cents / 100))
-        payment.refunded_at = timezone.now()
-        payment.status = Payment.STATUS_REFUNDED
-        payment.save(update_fields=["is_refunded", "refunded_amount", "refunded_at", "status"])
+            if payment.is_refunded:
+                return
+
+            refunded_cents = charge.get("amount_refunded", 0)
+            payment.is_refunded = True
+            payment.refunded_amount = Decimal(str(refunded_cents / 100))
+            payment.refunded_at = timezone.now()
+            payment.status = Payment.STATUS_REFUNDED
+            payment.save(update_fields=["is_refunded", "refunded_amount", "refunded_at", "status"])
 
         PaymentLog.objects.create(
             payment=payment,
