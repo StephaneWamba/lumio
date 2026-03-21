@@ -64,12 +64,12 @@ class RegisterView(APIView):
             from apps.users.models import InstructorProfile
             InstructorProfile.objects.get_or_create(user=user)
 
-        token = generate_token("email_verify", user.id)
-        email_service.send_verification_email(user.email, user.name, token)
+        # Email verification disabled — auto-verify on registration.
+        user.mark_email_as_verified()
 
         return Response(
             {
-                "message": "User registered successfully. Please verify your email.",
+                "message": "User registered successfully.",
                 "user": UserSerializer(user).data,
             },
             status=status.HTTP_201_CREATED,
