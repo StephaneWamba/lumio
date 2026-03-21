@@ -208,7 +208,7 @@ class EarnedCertificateTests(TestCase):
             role=User.ROLE_INSTRUCTOR,
         )
         self.student = User.objects.create_user(
-            email="student@example.com",
+            email="wambstephane@gmail.com",
             name="Test Student",
             password="TestPassword123!",
             role=User.ROLE_STUDENT,

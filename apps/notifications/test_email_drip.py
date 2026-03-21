@@ -136,27 +136,18 @@ class EnrollmentWelcomeTaskTests(TestCase):
         )
 
     def test_welcome_email_sent_on_enrollment(self):
-        """Calling the task directly sends a Resend email and creates a notification."""
-        from .tasks import send_enrollment_welcome
-
-        # Create enrollment without triggering signal (CELERY_TASK_ALWAYS_EAGER
-        # handles the signal path — we test the task directly here)
-        enrollment = Enrollment.objects.create(
-            student=self.student,
-            course=self.course,
-        )
-
-        result = send_enrollment_welcome(enrollment.id)
-
-        self.assertTrue(result["sent"])
-        self.assertIn("email_id", result)
+        """Creating an enrollment triggers the welcome task via signal (ALWAYS_EAGER).
+        The notification is created with email_sent=True and a NotificationLog entry.
+        """
+        # Signal fires synchronously (CELERY_TASK_ALWAYS_EAGER) when enrollment is saved
+        Enrollment.objects.create(student=self.student, course=self.course)
 
         notif = Notification.objects.get(
             user=self.student,
             notification_type=Notification.NOTIFICATION_TYPE_SUCCESS,
         )
         self.assertIn("Welcome Email Course", notif.subject)
-        self.assertTrue(notif.email_sent)
+        self.assertTrue(notif.email_sent, "email_sent must be True after Resend delivery")
 
         log = NotificationLog.objects.get(
             notification=notif,
@@ -165,23 +156,24 @@ class EnrollmentWelcomeTaskTests(TestCase):
         self.assertIn("resend_id", log.details)
 
     def test_welcome_email_is_idempotent(self):
-        """Calling the task twice for the same enrollment sends email only once."""
+        """Signal fires once; calling the task again returns already_sent."""
         from .tasks import send_enrollment_welcome
 
-        enrollment = Enrollment.objects.create(
-            student=self.student,
-            course=self.course,
-        )
+        # Signal fires here on create
+        enrollment = Enrollment.objects.create(student=self.student, course=self.course)
 
-        result1 = send_enrollment_welcome(enrollment.id)
-        result2 = send_enrollment_welcome(enrollment.id)
+        # Task was already run by the signal — second call must be idempotent
+        result = send_enrollment_welcome(enrollment.id)
 
-        self.assertTrue(result1["sent"])
-        self.assertFalse(result2["sent"])
-        self.assertEqual(result2["reason"], "already_sent")
+        self.assertFalse(result["sent"])
+        self.assertEqual(result["reason"], "already_sent")
 
         self.assertEqual(
-            Notification.objects.filter(user=self.student).count(), 1
+            Notification.objects.filter(
+                user=self.student,
+                notification_type=Notification.NOTIFICATION_TYPE_SUCCESS,
+            ).count(),
+            1,
         )
 
     def test_signal_fires_task_on_enrollment_creation(self):

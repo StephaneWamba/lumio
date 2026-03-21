@@ -150,7 +150,7 @@ class ManualReleaseEndpointTests(TestCase):
     def test_manually_release_creates_lesson_unlock(self):
         self.client.force_authenticate(user=self.instructor)
         response = self.client.post(
-            reverse("dripschedule-manually-release", args=[self.schedule.id])
+            reverse("drip-schedule-manually-release", args=[self.schedule.id])
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(

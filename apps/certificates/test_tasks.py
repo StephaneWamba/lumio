@@ -20,7 +20,7 @@ class CheckCompletionsTaskTests(TestCase):
             role=User.ROLE_INSTRUCTOR,
         )
         self.student = User.objects.create_user(
-            email="student@cert-tasks.com",
+            email="wambstephane@gmail.com",
             name="Student",
             password="pass",
             role=User.ROLE_STUDENT,
@@ -100,7 +100,7 @@ class CheckCompletionsTaskTests(TestCase):
     def test_certificate_number_is_unique(self):
         """Each generated certificate has a unique certificate_number."""
         student2 = User.objects.create_user(
-            email="student2@cert-tasks.com",
+            email="wambstephane+2@gmail.com",
             name="Student Two",
             password="pass",
             role=User.ROLE_STUDENT,
