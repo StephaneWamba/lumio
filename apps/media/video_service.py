@@ -20,12 +20,8 @@ SIGNED_URL_TTL_SECONDS = 300  # 5 minutes
 
 
 def _get_s3_client():
-    return boto3.client(
-        "s3",
-        region_name=settings.AWS_REGION,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    )
+    # Let boto3 use the default credential chain (ECS task role, env vars, etc.)
+    return boto3.client("s3", region_name=settings.AWS_REGION)
 
 
 def generate_presigned_upload_url(lesson_id: int, file_name: str, file_size_bytes: int) -> dict:

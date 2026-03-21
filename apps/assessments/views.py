@@ -362,3 +362,40 @@ class QuizAttemptViewSet(viewsets.ModelViewSet):
             AttemptAnswerSerializer(answer).data,
             status=status.HTTP_200_OK,
         )
+
+
+class QuestionViewSet(viewsets.ModelViewSet):
+    """CRUD for quiz questions (instructors only for write ops)."""
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = QuestionSerializer
+
+    def get_queryset(self):
+        qs = Question.objects.prefetch_related("options")
+        quiz_id = self.request.query_params.get("quiz")
+        if quiz_id:
+            qs = qs.filter(quiz_id=quiz_id)
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        options_data = request.data.pop("options", []) if isinstance(request.data, dict) else []
+        # Use mutable copy if needed
+        data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+        options_data = data.pop("options", [])
+
+        serializer = QuestionSerializer(data=data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        question = serializer.save()
+
+        for i, opt in enumerate(options_data):
+            QuestionOption.objects.create(
+                question=question,
+                text=opt.get("text", ""),
+                is_correct=opt.get("is_correct", False),
+                order=opt.get("order", i),
+            )
+
+        return Response(
+            QuestionSerializer(question, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )

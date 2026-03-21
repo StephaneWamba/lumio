@@ -312,8 +312,9 @@ STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
 STRIPE_PLATFORM_SHARE_PCT = config("STRIPE_PLATFORM_SHARE_PCT", default=20, cast=int)
 
 # Celery
-CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://127.0.0.1:6379/0")
-CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://127.0.0.1:6379/0")
+_redis_url = config("REDIS_URL", default="redis://127.0.0.1:6379/0")
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", default=_redis_url)
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default=_redis_url)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"

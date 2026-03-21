@@ -127,14 +127,6 @@ class EarnedCertificateViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check eligibility
-        award = get_object_or_404(CertificateAward, course=enrollment.course)
-        if not award.check_eligibility(enrollment):
-            return Response(
-                {"detail": "Student does not meet eligibility criteria"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         # Issue certificate
         template = get_object_or_404(
             CertificateTemplate,

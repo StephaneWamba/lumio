@@ -13,4 +13,5 @@ router.register(r"invoices", InvoiceViewSet, basename="invoice")
 urlpatterns = [
     path("", include(router.urls)),
     path("stripe/webhook/", StripeWebhookView.as_view(), name="stripe-webhook"),
+    path("webhook/", StripeWebhookView.as_view(), name="stripe-webhook-alias"),
 ]

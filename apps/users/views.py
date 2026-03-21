@@ -60,6 +60,10 @@ class RegisterView(APIView):
             role=user.role,
         )
 
+        if user.role == user.ROLE_INSTRUCTOR:
+            from apps.users.models import InstructorProfile
+            InstructorProfile.objects.get_or_create(user=user)
+
         token = generate_token("email_verify", user.id)
         email_service.send_verification_email(user.email, user.name, token)
 

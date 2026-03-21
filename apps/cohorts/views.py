@@ -12,7 +12,7 @@ import structlog
 from apps.courses.models import Course
 from apps.users.models import User
 from apps.enrollments.models import Enrollment
-from .models import Cohort, CohortMember, DripSchedule
+from .models import Cohort, CohortMember, DripSchedule, LessonUnlock
 from .unlock import create_lesson_unlocks_for_schedule
 from .serializers import (
     CohortListSerializer,
@@ -245,3 +245,32 @@ class DripScheduleViewSet(viewsets.ModelViewSet):
             DripScheduleSerializer(schedule).data,
             status=status.HTTP_200_OK,
         )
+
+
+class LessonUnlockViewSet(viewsets.ReadOnlyModelViewSet):
+    """List lesson unlocks for the current student, optionally filtered by cohort."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = LessonUnlock.objects.filter(
+            enrollment__student=self.request.user
+        ).select_related("lesson", "drip_schedule", "enrollment")
+        cohort_id = self.request.query_params.get("cohort")
+        if cohort_id:
+            qs = qs.filter(drip_schedule__cohort_id=cohort_id)
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        data = [
+            {
+                "id": u.id,
+                "lesson": u.lesson_id,
+                "lesson_title": u.lesson.title,
+                "unlocked_at": u.unlocked_at,
+                "enrollment": u.enrollment_id,
+            }
+            for u in qs
+        ]
+        return Response(data)
