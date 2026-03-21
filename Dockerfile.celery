@@ -49,4 +49,4 @@ COPY --chown=appuser:appuser . .
 USER appuser
 
 # Run Celery worker
-CMD ["celery", "-A", "config", "worker", "--loglevel=info", "--concurrency=4", "-Q", "default,transcoding,email,certificates"]
+CMD ["celery", "-A", "config", "worker", "--loglevel=info", "--concurrency=4", "-Q", "default,email,certificates"]
