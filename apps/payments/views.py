@@ -1,23 +1,35 @@
 """Payments app views"""
 
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.utils import timezone
-from django.shortcuts import get_object_or_404
-from decimal import Decimal
+import json
 import uuid
+from decimal import Decimal
 
-from .models import Price, Payment, Invoice, PaymentLog
-from .serializers import (
-    PriceSerializer,
-    PaymentListSerializer,
-    PaymentDetailSerializer,
-    InvoiceListSerializer,
-    InvoiceDetailSerializer,
-)
+import structlog
+from django.conf import settings
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from apps.courses.models import Course
+from apps.enrollments.models import Enrollment
+
+from . import stripe_service
+from .models import Invoice, Payment, PaymentLog, Price
+from .serializers import (
+    InvoiceDetailSerializer,
+    InvoiceListSerializer,
+    PaymentDetailSerializer,
+    PaymentListSerializer,
+    PriceSerializer,
+)
+
+logger = structlog.get_logger(__name__)
 
 
 class PriceViewSet(viewsets.ModelViewSet):
@@ -28,27 +40,20 @@ class PriceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter prices by user role"""
         user = self.request.user
         if user.is_staff or user.role == "admin":
             return Price.objects.all()
         if user.role == "instructor":
             return Price.objects.filter(course__instructor=user)
-        # Students see active prices for available courses
         return Price.objects.filter(is_active=True)
 
     def perform_create(self, serializer):
-        """Create price for a course"""
-        course = get_object_or_404(
-            Course,
-            id=self.request.data.get("course_id"),
-        )
+        course = get_object_or_404(Course, id=self.request.data.get("course_id"))
         if self.request.user != course.instructor and not self.request.user.is_staff:
             self.permission_denied(self.request)
         serializer.save()
 
     def perform_update(self, serializer):
-        """Update price"""
         course = serializer.instance.course
         if self.request.user != course.instructor and not self.request.user.is_staff:
             self.permission_denied(self.request)
@@ -61,27 +66,25 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter payments by user role"""
         user = self.request.user
         if user.is_staff or user.role == "admin":
             return Payment.objects.all().select_related("user", "course")
         if user.role == "instructor":
             return Payment.objects.filter(course__instructor=user).select_related("user", "course")
-        # Students see only their own payments
         return Payment.objects.filter(user=user).select_related("user", "course")
 
     def get_serializer_class(self):
-        """Use detail serializer for retrieve"""
         if self.action == "retrieve":
             return PaymentDetailSerializer
         return PaymentListSerializer
 
     @action(detail=False, methods=["post"])
     def initiate_payment(self, request):
-        """Initiate a payment for a course"""
+        """
+        Initiate a Stripe PaymentIntent for a course.
+        Returns client_secret for frontend to confirm the payment.
+        """
         course_id = request.data.get("course_id")
-        payment_method = request.data.get("payment_method", "credit_card")
-
         if not course_id:
             return Response(
                 {"detail": "course_id is required"},
@@ -90,84 +93,87 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
 
         course = get_object_or_404(Course, id=course_id)
 
-        # Check if course has pricing
         if not hasattr(course, "pricing"):
             return Response(
                 {"detail": "Course does not have pricing configured"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Create payment
         price = course.pricing
         amount = price.discounted_amount if price.is_discount_active else price.amount
 
-        transaction_id = f"TXN-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        # Idempotency: one payment per user+course in pending state
+        existing = Payment.objects.filter(
+            user=request.user,
+            course=course,
+            status=Payment.STATUS_PENDING,
+        ).first()
+        if existing:
+            serializer = PaymentDetailSerializer(existing)
+            data = serializer.data
+            # Re-fetch intent's client_secret so frontend can retry
+            intent = stripe_service._client().PaymentIntent.retrieve(existing.transaction_id)
+            data["client_secret"] = intent.client_secret
+            return Response(data, status=status.HTTP_200_OK)
+
+        # Resolve instructor's Stripe account (if onboarded)
+        instructor_stripe_id = None
+        try:
+            profile = course.instructor.instructor_profile
+            if profile.stripe_onboarded and profile.stripe_account_id:
+                instructor_stripe_id = profile.stripe_account_id
+        except Exception:
+            pass
+
+        # Reserve transaction_id early for idempotency key
+        idempotency_key = f"pi-{request.user.id}-{course.id}-{uuid.uuid4().hex[:8]}"
+
+        intent = stripe_service.create_payment_intent(
+            amount_decimal=amount,
+            currency=price.currency,
+            metadata={
+                "course_id": str(course.id),
+                "user_id": str(request.user.id),
+            },
+            idempotency_key=idempotency_key,
+            instructor_stripe_id=instructor_stripe_id,
+        )
 
         payment = Payment.objects.create(
             user=request.user,
             course=course,
             amount=amount,
             currency=price.currency,
-            payment_method=payment_method,
-            transaction_id=transaction_id,
+            payment_method=Payment.PAYMENT_METHOD_CREDIT_CARD,
+            transaction_id=intent.id,  # pi_xxx — used for refunds + webhook lookup
             status=Payment.STATUS_PENDING,
         )
 
-        # Log the creation
+        # Update metadata with our DB payment_id so webhook can look it up
+        stripe_service._client().PaymentIntent.modify(
+            intent.id,
+            metadata={
+                "payment_id": str(payment.id),
+                "course_id": str(course.id),
+                "user_id": str(request.user.id),
+            },
+        )
+
         PaymentLog.objects.create(
             payment=payment,
             log_type=PaymentLog.LOG_TYPE_CREATED,
-            message=f"Payment initiated for {course.title}",
+            message=f"PaymentIntent created for {course.title}",
+            details=intent.id,
         )
 
         serializer = PaymentDetailSerializer(payment)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    @action(detail=True, methods=["post"])
-    def complete_payment(self, request, pk=None):
-        """Complete a payment"""
-        payment = self.get_object()
-
-        if payment.user != request.user and not request.user.is_staff:
-            self.permission_denied(request)
-
-        if payment.status != Payment.STATUS_PENDING:
-            return Response(
-                {"detail": "Payment is not in pending status"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Mark as completed
-        payment.status = Payment.STATUS_COMPLETED
-        payment.completed_at = timezone.now()
-        payment.save()
-
-        # Log the completion
-        PaymentLog.objects.create(
-            payment=payment,
-            log_type=PaymentLog.LOG_TYPE_COMPLETED,
-            message="Payment completed",
-            details=request.data.get("details", ""),
-        )
-
-        # Create invoice
-        invoice_number = f"INV-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-        Invoice.objects.create(
-            payment=payment,
-            invoice_number=invoice_number,
-            status=Invoice.STATUS_ISSUED,
-            subtotal=payment.amount,
-            tax_amount=Decimal("0.00"),
-            total_amount=payment.amount,
-            issued_date=timezone.now().date(),
-        )
-
-        serializer = PaymentDetailSerializer(payment)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        data = serializer.data
+        data["client_secret"] = intent.client_secret
+        return Response(data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
     def mark_failed(self, request, pk=None):
-        """Mark payment as failed"""
+        """Mark payment as failed (called by frontend on card decline)."""
         payment = self.get_object()
 
         if payment.user != request.user and not request.user.is_staff:
@@ -177,7 +183,6 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         payment.processor_response = request.data.get("error_message", "")
         payment.save()
 
-        # Log the failure
         PaymentLog.objects.create(
             payment=payment,
             log_type=PaymentLog.LOG_TYPE_FAILED,
@@ -185,12 +190,11 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
             details=payment.processor_response,
         )
 
-        serializer = PaymentDetailSerializer(payment)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(PaymentDetailSerializer(payment).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def refund(self, request, pk=None):
-        """Refund a payment"""
+        """Issue a real Stripe refund (admin or instructor only)."""
         payment = self.get_object()
 
         if payment.course.instructor != request.user and not request.user.is_staff:
@@ -198,18 +202,23 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
 
         if payment.status != Payment.STATUS_COMPLETED:
             return Response(
-                {"detail": "Payment is not in completed status"},
+                {"detail": "Payment is not completed"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         if payment.is_refunded:
             return Response(
-                {"detail": "Payment is already refunded"},
+                {"detail": "Payment already refunded"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Refund the payment
-        refund_amount = request.data.get("amount", payment.amount)
+        refund_amount = Decimal(str(request.data.get("amount", payment.amount)))
+        refund_cents = int(refund_amount * 100)
+
+        stripe_service.create_refund(
+            payment_intent_id=payment.transaction_id,
+            amount_cents=refund_cents if refund_amount != payment.amount else None,
+        )
+
         payment.is_refunded = True
         payment.refunded_amount = refund_amount
         payment.refunded_at = timezone.now()
@@ -217,16 +226,147 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         payment.status = Payment.STATUS_REFUNDED
         payment.save()
 
-        # Log the refund
         PaymentLog.objects.create(
             payment=payment,
             log_type=PaymentLog.LOG_TYPE_REFUNDED,
-            message=f"Payment refunded: {refund_amount} {payment.currency}",
+            message=f"Refunded {refund_amount} {payment.currency}",
             details=payment.refund_reason,
         )
 
-        serializer = PaymentDetailSerializer(payment)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(PaymentDetailSerializer(payment).data, status=status.HTTP_200_OK)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class StripeWebhookView(APIView):
+    """
+    Idempotent Stripe webhook handler.
+    Handles: payment_intent.succeeded, payment_intent.payment_failed, charge.refunded
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
+        try:
+            event = stripe_service.construct_webhook_event(request.body, sig_header)
+        except Exception as exc:
+            logger.warning("stripe_webhook_invalid_signature", error=str(exc))
+            return Response({"detail": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
+
+        event_type = event["type"]
+        obj = event["data"]["object"]
+
+        if event_type == "payment_intent.succeeded":
+            self._handle_payment_succeeded(obj)
+        elif event_type == "payment_intent.payment_failed":
+            self._handle_payment_failed(obj)
+        elif event_type == "charge.refunded":
+            self._handle_charge_refunded(obj)
+
+        return Response({"status": "ok"}, status=status.HTTP_200_OK)
+
+    def _handle_payment_succeeded(self, intent):
+        payment_id = intent.get("metadata", {}).get("payment_id")
+        if not payment_id:
+            logger.warning("stripe_webhook_no_payment_id", intent_id=intent.get("id"))
+            return
+
+        try:
+            payment = Payment.objects.get(id=payment_id)
+        except Payment.DoesNotExist:
+            logger.warning("stripe_webhook_payment_not_found", payment_id=payment_id)
+            return
+
+        # Idempotent
+        if payment.status == Payment.STATUS_COMPLETED:
+            return
+
+        payment.status = Payment.STATUS_COMPLETED
+        payment.completed_at = timezone.now()
+        payment.save(update_fields=["status", "completed_at"])
+
+        # Create invoice
+        invoice_number = (
+            f"INV-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        )
+        Invoice.objects.get_or_create(
+            payment=payment,
+            defaults={
+                "invoice_number": invoice_number,
+                "status": Invoice.STATUS_PAID,
+                "subtotal": payment.amount,
+                "tax_amount": Decimal("0.00"),
+                "total_amount": payment.amount,
+                "issued_date": timezone.now().date(),
+                "paid_date": timezone.now().date(),
+            },
+        )
+
+        # Auto-enroll student
+        Enrollment.objects.get_or_create(
+            student=payment.user,
+            course=payment.course,
+        )
+
+        PaymentLog.objects.create(
+            payment=payment,
+            log_type=PaymentLog.LOG_TYPE_COMPLETED,
+            message="Payment confirmed via Stripe webhook",
+            details=intent.get("id", ""),
+        )
+        logger.info("payment_completed", payment_id=payment.id, intent_id=intent.get("id"))
+
+    def _handle_payment_failed(self, intent):
+        payment_id = intent.get("metadata", {}).get("payment_id")
+        if not payment_id:
+            return
+        try:
+            payment = Payment.objects.get(id=payment_id)
+        except Payment.DoesNotExist:
+            return
+
+        if payment.status == Payment.STATUS_FAILED:
+            return
+
+        error = intent.get("last_payment_error", {}) or {}
+        payment.status = Payment.STATUS_FAILED
+        payment.processor_response = error.get("message", "Payment failed")
+        payment.save(update_fields=["status", "processor_response"])
+
+        PaymentLog.objects.create(
+            payment=payment,
+            log_type=PaymentLog.LOG_TYPE_FAILED,
+            message="Payment failed via Stripe webhook",
+            details=payment.processor_response,
+        )
+        logger.info("payment_failed", payment_id=payment.id)
+
+    def _handle_charge_refunded(self, charge):
+        intent_id = charge.get("payment_intent")
+        if not intent_id:
+            return
+        try:
+            payment = Payment.objects.get(transaction_id=intent_id)
+        except Payment.DoesNotExist:
+            return
+
+        if payment.is_refunded:
+            return
+
+        refunded_cents = charge.get("amount_refunded", 0)
+        payment.is_refunded = True
+        payment.refunded_amount = Decimal(str(refunded_cents / 100))
+        payment.refunded_at = timezone.now()
+        payment.status = Payment.STATUS_REFUNDED
+        payment.save(update_fields=["is_refunded", "refunded_amount", "refunded_at", "status"])
+
+        PaymentLog.objects.create(
+            payment=payment,
+            log_type=PaymentLog.LOG_TYPE_REFUNDED,
+            message="Refund confirmed via Stripe webhook",
+            details=str(refunded_cents),
+        )
+        logger.info("payment_refunded_via_webhook", payment_id=payment.id)
 
 
 class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
@@ -235,7 +375,6 @@ class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter invoices by user role"""
         user = self.request.user
         if user.is_staff or user.role == "admin":
             return Invoice.objects.all().select_related("payment")
@@ -243,11 +382,9 @@ class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
             return Invoice.objects.filter(payment__course__instructor=user).select_related(
                 "payment"
             )
-        # Students see only their own invoices
         return Invoice.objects.filter(payment__user=user).select_related("payment")
 
     def get_serializer_class(self):
-        """Use detail serializer for retrieve"""
         if self.action == "retrieve":
             return InvoiceDetailSerializer
         return InvoiceListSerializer

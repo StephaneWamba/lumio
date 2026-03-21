@@ -639,6 +639,9 @@ locals {
     { name = "RESEND_API_KEY",              value = var.resend_api_key },
     { name = "CLOUDFRONT_KEY_PAIR_ID",      value = var.cloudfront_key_pair_id },
     { name = "CLOUDFRONT_PRIVATE_KEY_B64",  value = var.cloudfront_private_key_b64 },
+    { name = "STRIPE_SECRET_KEY",           value = var.stripe_secret_key },
+    { name = "STRIPE_WEBHOOK_SECRET",       value = var.stripe_webhook_secret },
+    { name = "STRIPE_PLATFORM_SHARE_PCT",   value = "20" },
   ]
 }
 

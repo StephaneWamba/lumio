@@ -165,3 +165,15 @@ variable "cloudfront_private_key_b64" {
   type        = string
   sensitive   = true
 }
+
+variable "stripe_secret_key" {
+  description = "Stripe secret key"
+  type        = string
+  sensitive   = true
+}
+
+variable "stripe_webhook_secret" {
+  description = "Stripe webhook signing secret"
+  type        = string
+  sensitive   = true
+}

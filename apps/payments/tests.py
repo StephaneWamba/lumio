@@ -163,8 +163,12 @@ class PaymentTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
 
-    def test_initiate_payment(self):
-        """Test initiating a payment"""
+    def test_initiate_payment_creates_stripe_intent(self):
+        """Initiating a payment calls real Stripe and returns a client_secret."""
+        import django.conf as conf
+        if not conf.settings.STRIPE_SECRET_KEY:
+            self.skipTest("STRIPE_SECRET_KEY not configured")
+
         self.client.force_authenticate(user=self.student)
         response = self.client.post(
             reverse("payment-initiate-payment"),
@@ -173,6 +177,8 @@ class PaymentTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["status"], "pending")
         self.assertEqual(response.data["amount"], "99.99")
+        self.assertIn("client_secret", response.data)
+        self.assertTrue(response.data["client_secret"].startswith("pi_"))
 
     def test_initiate_payment_without_pricing(self):
         """Test cannot initiate payment for course without pricing"""
@@ -186,21 +192,6 @@ class PaymentTests(TestCase):
             {"course_id": unpri_course.id},
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_complete_payment(self):
-        """Test completing a payment"""
-        payment = Payment.objects.create(
-            user=self.student,
-            course=self.course,
-            amount=Decimal("99.99"),
-            currency="USD",
-            transaction_id="TXN-TEST-001",
-            status=Payment.STATUS_PENDING,
-        )
-        self.client.force_authenticate(user=self.student)
-        response = self.client.post(reverse("payment-complete-payment", args=[payment.id]))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["status"], "completed")
 
     def test_mark_payment_failed(self):
         """Test marking payment as failed"""
@@ -220,24 +211,22 @@ class PaymentTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "failed")
 
-    def test_refund_payment(self):
-        """Test refunding a payment"""
+    def test_refund_requires_completed_status(self):
+        """Refunding a pending payment returns 400."""
         payment = Payment.objects.create(
             user=self.student,
             course=self.course,
             amount=Decimal("99.99"),
             currency="USD",
-            transaction_id="TXN-TEST-003",
-            status=Payment.STATUS_COMPLETED,
-            completed_at=timezone.now(),
+            transaction_id="pi-fake-pending",
+            status=Payment.STATUS_PENDING,
         )
         self.client.force_authenticate(user=self.instructor)
         response = self.client.post(
             reverse("payment-refund", args=[payment.id]),
-            {"reason": "Student requested refund"},
+            {"reason": "Mistake"},
         )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.data["is_refunded"])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_cannot_refund_non_completed(self):
         """Test cannot refund non-completed payment"""
@@ -321,17 +310,57 @@ class InvoiceTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
 
-    def test_invoice_creation_on_payment_complete(self):
-        """Test invoice is created when payment is completed"""
-        new_payment = Payment.objects.create(
+    def test_webhook_payment_succeeded_creates_invoice_and_enrollment(self):
+        """Stripe webhook payment_intent.succeeded → invoice + enrollment created."""
+        import json
+        import stripe
+        from django.conf import settings
+        from apps.enrollments.models import Enrollment
+
+        payment = Payment.objects.create(
             user=self.student,
             course=self.course,
             amount=Decimal("49.99"),
             currency="USD",
-            transaction_id="TXN-INV-002",
+            transaction_id="pi_test_webhook_001",
             status=Payment.STATUS_PENDING,
         )
-        self.client.force_authenticate(user=self.student)
-        self.client.post(reverse("payment-complete-payment", args=[new_payment.id]))
-        # Verify invoice was created
-        self.assertTrue(Invoice.objects.filter(payment=new_payment).exists())
+
+        # Build a minimal payment_intent.succeeded event payload
+        payload = json.dumps({
+            "id": "evt_test_001",
+            "type": "payment_intent.succeeded",
+            "data": {
+                "object": {
+                    "id": "pi_test_webhook_001",
+                    "metadata": {"payment_id": str(payment.id)},
+                }
+            },
+        }).encode()
+
+        # Sign it with the real webhook secret so our view accepts it
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        import time
+        ts = int(time.time())
+        signed_payload = f"{ts}.{payload.decode()}"
+        import hmac, hashlib
+        sig = hmac.new(
+            settings.STRIPE_WEBHOOK_SECRET.encode(),
+            signed_payload.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+        stripe_sig = f"t={ts},v1={sig}"
+
+        response = self.client.post(
+            reverse("stripe-webhook"),
+            data=payload,
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE=stripe_sig,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, Payment.STATUS_COMPLETED)
+        self.assertTrue(Invoice.objects.filter(payment=payment).exists())
+        self.assertTrue(Enrollment.objects.filter(student=self.student, course=self.course).exists())

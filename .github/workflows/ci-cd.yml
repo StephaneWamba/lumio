@@ -102,6 +102,9 @@ jobs:
           CLOUDFRONT_PRIVATE_KEY_B64: ${{ secrets.CLOUDFRONT_PRIVATE_KEY_B64 }}
           CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_PLATFORM_SHARE_PCT: "20"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -216,6 +219,8 @@ jobs:
                          -var="resend_api_key=${{ secrets.RESEND_API_KEY }}" \
                          -var="cloudfront_key_pair_id=${{ secrets.CLOUDFRONT_KEY_PAIR_ID }}" \
                          -var="cloudfront_private_key_b64=${{ secrets.CLOUDFRONT_PRIVATE_KEY_B64 }}" \
+                         -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+                         -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
                          -out=tfplan
 
       - name: Terraform Apply

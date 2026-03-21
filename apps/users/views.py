@@ -219,12 +219,35 @@ class InstructorProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"])
     def onboard_stripe(self, request):
-        """Initiate Stripe Connect onboarding"""
-        # TODO: Implement Stripe Connect OAuth flow
-        return Response(
-            {"message": "Stripe onboarding initiated."},
-            status=status.HTTP_200_OK,
+        """
+        Initiate Stripe Connect Express onboarding.
+        Creates a Stripe Express account if not yet created, returns onboarding URL.
+        """
+        from apps.payments import stripe_service
+        from django.conf import settings as django_settings
+
+        try:
+            profile = request.user.instructor_profile
+        except Exception:
+            return Response(
+                {"detail": "Instructor profile not found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create Stripe Express account on first call
+        if not profile.stripe_account_id:
+            account = stripe_service.create_connect_account()
+            profile.stripe_account_id = account.id
+            profile.save(update_fields=["stripe_account_id"])
+
+        frontend_url = getattr(django_settings, "FRONTEND_URL", "https://lumio.io")
+        link = stripe_service.create_account_link(
+            account_id=profile.stripe_account_id,
+            refresh_url=f"{frontend_url}/instructor/stripe/refresh",
+            return_url=f"{frontend_url}/instructor/stripe/complete",
         )
+
+        return Response({"onboarding_url": link.url}, status=status.HTTP_200_OK)
 
 
 class CorporateManagerProfileViewSet(viewsets.ModelViewSet):
