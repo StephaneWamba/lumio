@@ -26,6 +26,7 @@ from .serializers import (
     CorporateManagerProfileSerializer,
 )
 import structlog
+from django.conf import settings
 
 from . import email_service
 from .token_service import generate_token, consume_token
@@ -64,8 +65,11 @@ class RegisterView(APIView):
             from apps.users.models import InstructorProfile
             InstructorProfile.objects.get_or_create(user=user)
 
-        # Email verification disabled — auto-verify on registration.
-        user.mark_email_as_verified()
+        if not getattr(settings, "EMAIL_VERIFICATION_REQUIRED", False):
+            user.mark_email_as_verified()
+        else:
+            token = generate_token("email_verify", user.id)
+            email_service.send_verification_email(user.email, user.name, token)
 
         return Response(
             {

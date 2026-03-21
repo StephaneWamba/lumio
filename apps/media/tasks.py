@@ -81,7 +81,8 @@ def transcode_video(self: Any, video_file_id: int) -> dict:
             logger.info("downloading_raw_video", s3_key=video.s3_key_raw, lesson_id=lesson_id)
             obj = s3.get_object(Bucket=settings.S3_RAW_BUCKET, Key=video.s3_key_raw)
             with open(raw_path, "wb") as fh:
-                fh.write(obj["Body"].read())
+                for chunk in obj["Body"].iter_chunks(chunk_size=8 * 1024 * 1024):
+                    fh.write(chunk)
 
             hls_keys = []
             manifest_lines = ["#EXTM3U", "#EXT-X-VERSION:3"]
@@ -124,6 +125,7 @@ def transcode_video(self: Any, video_file_id: int) -> dict:
 
                 # Upload all segment files and m3u8 to processed bucket
                 s3_prefix = f"hls/{lesson_id}/{variant['name']}"
+                variant_key = None
                 for fname in os.listdir(variant_dir):
                     local_path = os.path.join(variant_dir, fname)
                     s3_key = f"{s3_prefix}/{fname}"
@@ -131,6 +133,10 @@ def transcode_video(self: Any, video_file_id: int) -> dict:
                     if fname == "index.m3u8":
                         variant_key = s3_key
 
+                if variant_key is None:
+                    raise RuntimeError(
+                        f"index.m3u8 not produced for variant {variant['name']}"
+                    )
                 hls_keys.append(variant_key)
 
                 # Bandwidth value for master manifest (strip 'k', multiply by 1000)
