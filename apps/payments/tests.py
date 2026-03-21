@@ -1,5 +1,7 @@
 """Tests for payments"""
 
+import stripe
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -267,12 +269,14 @@ class InvoiceTests(TestCase):
             instructor=self.instructor,
             title="Test Course",
         )
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        intent = stripe.PaymentIntent.create(amount=9999, currency="usd")
         self.payment = Payment.objects.create(
             user=self.student,
             course=self.course,
             amount=Decimal("99.99"),
             currency="USD",
-            transaction_id="TXN-INV-001",
+            transaction_id=intent.id,
             status=Payment.STATUS_COMPLETED,
         )
 
@@ -294,6 +298,7 @@ class InvoiceTests(TestCase):
         response = self.client.get(reverse("invoice-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
+        self.assertTrue(response.data["results"][0]["invoice_number"].startswith("INV-"))
 
     def test_webhook_payment_succeeded_creates_invoice_and_enrollment(self):
         """Stripe webhook payment_intent.succeeded → invoice + enrollment created."""

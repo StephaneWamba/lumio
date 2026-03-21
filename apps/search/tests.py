@@ -230,16 +230,31 @@ class SearchAPITests(APITestCase):
         """Test searching with query parameter"""
         response = self.client.get("/api/v1/search/?q=Course")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("results", response.data)
+        # All 5 courses have "Course" in their title, so all should be returned
+        titles = [r["title"] for r in response.data["results"]]
+        self.assertTrue(all("Course" in t for t in titles))
+        self.assertGreaterEqual(len(response.data["results"]), 5)
 
     def test_search_filter_by_category(self):
         """Test filtering by category"""
         response = self.client.get("/api/v1/search/?category=Web%20Development")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("results", response.data)
+        # Courses at index 0, 2, 4 have category "Web Development"
+        self.assertGreaterEqual(len(response.data["results"]), 3)
+        for result in response.data["results"]:
+            self.assertEqual(result["category"], "Web Development")
 
     def test_search_filter_by_difficulty(self):
         """Test filtering by difficulty"""
         response = self.client.get("/api/v1/search/?difficulty=beginner")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("results", response.data)
+        # Courses at index 0 and 3 have difficulty "beginner"
+        self.assertGreaterEqual(len(response.data["results"]), 2)
+        for result in response.data["results"]:
+            self.assertEqual(result["difficulty"], "beginner")
 
     def test_search_facets_endpoint(self):
         """Test facets endpoint"""
@@ -253,6 +268,14 @@ class SearchAPITests(APITestCase):
         """Test facets for specific content type"""
         response = self.client.get("/api/v1/search/facets/?content_type=course")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("categories", response.data)
+        self.assertIn("difficulties", response.data)
+        self.assertIn("instructors", response.data)
+        # Only courses exist in the index, so both categories should be present
+        self.assertIn("Web Development", response.data["categories"])
+        self.assertIn("Mobile", response.data["categories"])
+        # The single instructor should appear
+        self.assertIn("Test Instructor", response.data["instructors"])
 
     def test_search_trending_endpoint(self):
         """Test trending searches endpoint"""
@@ -301,6 +324,12 @@ class SearchAPITests(APITestCase):
         """Test search result ordering"""
         response = self.client.get("/api/v1/search/?ordering=-rating")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("results", response.data)
+        results = response.data["results"]
+        self.assertGreaterEqual(len(results), 2)
+        # Verify descending rating order
+        ratings = [float(r["rating"]) for r in results]
+        self.assertEqual(ratings, sorted(ratings, reverse=True))
 
     def test_unpublished_content_not_searchable(self):
         """Test that unpublished content is not returned"""

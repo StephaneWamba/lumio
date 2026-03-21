@@ -1,5 +1,6 @@
 """Tests for certificates"""
 
+import uuid
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -9,6 +10,20 @@ from apps.users.models import User, InstructorProfile
 from apps.courses.models import Course
 from apps.enrollments.models import Enrollment
 from .models import CertificateTemplate, CertificateAward, EarnedCertificate
+
+
+def _make_certificate_number():
+    """Generate a certificate number matching the real system format."""
+    return f"CERT-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+
+
+def _render_content(template, enrollment):
+    """Render certificate content the same way _create_certificate does."""
+    return template.content.format(
+        student_name=enrollment.student.name,
+        course_title=enrollment.course.title,
+        completion_date=timezone.now().strftime("%B %d, %Y"),
+    )
 
 
 class CertificateTemplateTests(TestCase):
@@ -235,8 +250,8 @@ class EarnedCertificateTests(TestCase):
         EarnedCertificate.objects.create(
             enrollment=self.enrollment,
             template=self.template,
-            certificate_number="CERT-TEST-001",
-            rendered_content="Test",
+            certificate_number=_make_certificate_number(),
+            rendered_content=_render_content(self.template, self.enrollment),
         )
         self.client.force_authenticate(user=self.instructor)
         response = self.client.post(
@@ -267,29 +282,37 @@ class EarnedCertificateTests(TestCase):
 
     def test_student_sees_own_certificates(self):
         """Test student can see their own certificates"""
-        certificate = EarnedCertificate.objects.create(
+        cert_number = _make_certificate_number()
+        EarnedCertificate.objects.create(
             enrollment=self.enrollment,
             template=self.template,
-            certificate_number="CERT-TEST-001",
-            rendered_content="Test",
+            certificate_number=cert_number,
+            rendered_content=_render_content(self.template, self.enrollment),
         )
         self.client.force_authenticate(user=self.student)
         response = self.client.get(reverse("earned-certificate-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
+        result = response.data["results"][0]
+        self.assertEqual(result["certificate_number"], cert_number)
+        self.assertRegex(result["certificate_number"], r"^CERT-\d{8}-[0-9A-F]{8}$")
 
     def test_instructor_sees_their_students_certificates(self):
         """Test instructor sees certificates for their students"""
+        cert_number = _make_certificate_number()
         EarnedCertificate.objects.create(
             enrollment=self.enrollment,
             template=self.template,
-            certificate_number="CERT-TEST-001",
-            rendered_content="Test",
+            certificate_number=cert_number,
+            rendered_content=_render_content(self.template, self.enrollment),
         )
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("earned-certificate-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
+        result = response.data["results"][0]
+        self.assertEqual(result["certificate_number"], cert_number)
+        self.assertRegex(result["certificate_number"], r"^CERT-\d{8}-[0-9A-F]{8}$")
 
     def test_student_cannot_see_others_certificates(self):
         """Test student cannot see other student's certificates"""
@@ -302,8 +325,8 @@ class EarnedCertificateTests(TestCase):
         EarnedCertificate.objects.create(
             enrollment=self.enrollment,
             template=self.template,
-            certificate_number="CERT-TEST-001",
-            rendered_content="Test",
+            certificate_number=_make_certificate_number(),
+            rendered_content=_render_content(self.template, self.enrollment),
         )
         self.client.force_authenticate(user=other_student)
         response = self.client.get(reverse("earned-certificate-list"))
@@ -315,8 +338,8 @@ class EarnedCertificateTests(TestCase):
         certificate = EarnedCertificate.objects.create(
             enrollment=self.enrollment,
             template=self.template,
-            certificate_number="CERT-TEST-001",
-            rendered_content="Test",
+            certificate_number=_make_certificate_number(),
+            rendered_content=_render_content(self.template, self.enrollment),
         )
         self.client.force_authenticate(user=self.instructor)
         response = self.client.post(
@@ -332,8 +355,8 @@ class EarnedCertificateTests(TestCase):
         certificate = EarnedCertificate.objects.create(
             enrollment=self.enrollment,
             template=self.template,
-            certificate_number="CERT-TEST-001",
-            rendered_content="Test",
+            certificate_number=_make_certificate_number(),
+            rendered_content=_render_content(self.template, self.enrollment),
             is_revoked=True,
             revoked_at=timezone.now(),
         )
@@ -346,11 +369,12 @@ class EarnedCertificateTests(TestCase):
 
     def test_certificate_number_unique(self):
         """Test certificate numbers are unique"""
+        duplicate_number = _make_certificate_number()
         EarnedCertificate.objects.create(
             enrollment=self.enrollment,
             template=self.template,
-            certificate_number="CERT-001",
-            rendered_content="Test",
+            certificate_number=duplicate_number,
+            rendered_content=_render_content(self.template, self.enrollment),
         )
         student2 = User.objects.create_user(
             email="student2@example.com",
@@ -366,6 +390,6 @@ class EarnedCertificateTests(TestCase):
             EarnedCertificate.objects.create(
                 enrollment=enrollment2,
                 template=self.template,
-                certificate_number="CERT-001",  # Same number
-                rendered_content="Test",
+                certificate_number=duplicate_number,  # Same number — must raise
+                rendered_content=_render_content(self.template, enrollment2),
             )

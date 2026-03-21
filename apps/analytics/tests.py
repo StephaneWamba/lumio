@@ -356,6 +356,10 @@ class EngagementMetricTests(TestCase):
             {"course_id": self.course.id},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        top = response.data[0]
+        self.assertEqual(top["student__email"], self.student.email)
+        self.assertEqual(top["total_engagement"], 10)
 
     def test_engagement_by_type(self):
         """Test getting engagement breakdown by type"""
@@ -377,3 +381,11 @@ class EngagementMetricTests(TestCase):
             {"course_id": self.course.id},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        # Results are ordered by -total_count, so lesson_view (5) comes first
+        by_type = {row["metric_type"]: row for row in response.data}
+        self.assertIn(EngagementMetric.METRIC_TYPE_LESSON_VIEW, by_type)
+        self.assertIn(EngagementMetric.METRIC_TYPE_QUIZ_ATTEMPT, by_type)
+        self.assertEqual(by_type[EngagementMetric.METRIC_TYPE_LESSON_VIEW]["total_count"], 5)
+        self.assertEqual(by_type[EngagementMetric.METRIC_TYPE_QUIZ_ATTEMPT]["total_count"], 3)
+        self.assertEqual(by_type[EngagementMetric.METRIC_TYPE_LESSON_VIEW]["unique_students"], 1)

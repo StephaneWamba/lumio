@@ -16,14 +16,6 @@ from apps.courses.models import Course, Section, Lesson
 from apps.media.models import VideoFile, CloudFrontSignedUrl
 
 
-def _skip_if_no_aws():
-    """Return True if AWS credentials are not available in the test environment."""
-    return not (settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY)
-
-
-def _skip_if_no_cloudfront():
-    return not (settings.CLOUDFRONT_KEY_PAIR_ID and settings.CLOUDFRONT_PRIVATE_KEY_B64)
-
 
 class PresignedUploadTests(TestCase):
     """Presigned S3 upload URL — hits real S3."""
@@ -44,9 +36,6 @@ class PresignedUploadTests(TestCase):
 
     def test_initiate_upload_returns_real_presigned_url(self):
         """Returns a genuine S3 presigned PUT URL that accepts a PUT request."""
-        if _skip_if_no_aws():
-            self.skipTest("AWS credentials not available")
-
         self.client.force_authenticate(user=self.instructor)
         response = self.client.post(
             reverse("videofile-initiate-upload"),
@@ -69,9 +58,6 @@ class PresignedUploadTests(TestCase):
 
     def test_initiate_upload_creates_pending_video_file(self):
         """VideoFile record created in STATUS_PENDING after calling endpoint."""
-        if _skip_if_no_aws():
-            self.skipTest("AWS credentials not available")
-
         self.client.force_authenticate(user=self.instructor)
         self.client.post(
             reverse("videofile-initiate-upload"),
@@ -85,9 +71,6 @@ class PresignedUploadTests(TestCase):
 
     def test_non_owner_cannot_get_upload_url(self):
         """Instructor who doesn't own the course gets 403."""
-        if _skip_if_no_aws():
-            self.skipTest("AWS credentials not available")
-
         other = User.objects.create_user(
             email="other@media-test.com",
             name="Other",
@@ -133,9 +116,6 @@ class CloudFrontSignedUrlTests(TestCase):
 
     def test_signed_url_generated_with_real_key(self):
         """CloudFront signer produces a URL with Signature, Key-Pair-Id, Expires params."""
-        if _skip_if_no_cloudfront():
-            self.skipTest("CloudFront credentials not available")
-
         from apps.media.video_service import generate_cloudfront_signed_url
 
         signed_url, expires_at = generate_cloudfront_signed_url("hls/1/master.m3u8")
@@ -148,9 +128,6 @@ class CloudFrontSignedUrlTests(TestCase):
 
     def test_get_video_url_endpoint_returns_signed_url(self):
         """GET endpoint calls real signer and returns CloudFront URL."""
-        if _skip_if_no_cloudfront():
-            self.skipTest("CloudFront credentials not available")
-
         self.client.force_authenticate(user=self.student)
         response = self.client.get(
             reverse("signed-video-url-get-video-url", kwargs={"lesson_id": self.lesson.id})
@@ -163,9 +140,6 @@ class CloudFrontSignedUrlTests(TestCase):
 
     def test_signed_url_cached_in_db(self):
         """After first call, CloudFrontSignedUrl record is created."""
-        if _skip_if_no_cloudfront():
-            self.skipTest("CloudFront credentials not available")
-
         self.client.force_authenticate(user=self.student)
         self.client.get(
             reverse("signed-video-url-get-video-url", kwargs={"lesson_id": self.lesson.id})
@@ -246,14 +220,6 @@ class TranscodeVideoTaskTests(TestCase):
 
     def test_transcode_completes_and_uploads_hls_to_s3(self):
         """Full end-to-end: upload raw video → transcode → HLS in S3."""
-        if _skip_if_no_aws():
-            self.skipTest("AWS credentials not available")
-
-        import shutil
-
-        if not shutil.which("ffmpeg"):
-            self.skipTest("FFmpeg not installed")
-
         s3_key = f"raw/{self.lesson.id}/{uuid.uuid4().hex}.mp4"
         self._upload_tiny_test_video(s3_key)
 
