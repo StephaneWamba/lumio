@@ -238,12 +238,10 @@ jobs:
             --overrides '{"containerOverrides":[{"name":"lumio-app","command":["python","manage.py","migrate","--noinput"]}]}' \
             --region ${{ env.AWS_REGION }}
 
-      - name: Force ECS Deployment
-        run: |
-          aws ecs update-service --cluster lumio \
-                                 --service lumio-app \
-                                 --force-new-deployment \
-                                 --region ${{ env.AWS_REGION }}
+      # NOTE: No separate force-new-deployment step — terraform apply already triggers
+      # a rolling deployment when it updates the task definition ARN. Adding a second
+      # force-new-deployment would interrupt the terraform-initiated rollout and cause
+      # two simultaneous deployments, which is the root cause of ServicesStable timeouts.
 
       - name: Wait for ECS service to stabilize
         run: |
