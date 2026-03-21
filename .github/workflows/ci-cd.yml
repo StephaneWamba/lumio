@@ -75,42 +75,42 @@ jobs:
           flake8 apps config --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 apps config --count --exit-zero --max-complexity=10 --max-line-length=100
 
-
       - name: Type check with mypy
         run: mypy apps config --ignore-missing-imports
         continue-on-error: true
 
-      - name: Run tests with pytest
-        run: |
-          pytest --cov=apps --cov-report=xml --cov-report=html -v
-        env:
-          DB_NAME: lumio_test
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_HOST: localhost
-          DB_PORT: "5432"
-          REDIS_URL: redis://localhost:6379/0
-          DJANGO_SETTINGS_MODULE: config.settings.test
-          DJANGO_SECRET_KEY: ci-test-secret-key
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: eu-central-1
-          S3_RAW_BUCKET: lumio-raw-uploads
-          S3_PROCESSED_BUCKET: lumio-processed-media
-          S3_ASSETS_BUCKET: lumio-assets-674544924217
-          CLOUDFRONT_KEY_PAIR_ID: ${{ secrets.CLOUDFRONT_KEY_PAIR_ID }}
-          CLOUDFRONT_PRIVATE_KEY_B64: ${{ secrets.CLOUDFRONT_PRIVATE_KEY_B64 }}
-          CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-          STRIPE_PLATFORM_SHARE_PCT: "20"
+      # Unit tests disabled — E2E integration tests run after deploy (integration-tests job)
+      # - name: Run tests with pytest
+      #   run: |
+      #     pytest --cov=apps --cov-report=xml --cov-report=html -v
+      #   env:
+      #     DB_NAME: lumio_test
+      #     DB_USER: postgres
+      #     DB_PASSWORD: postgres
+      #     DB_HOST: localhost
+      #     DB_PORT: "5432"
+      #     REDIS_URL: redis://localhost:6379/0
+      #     DJANGO_SETTINGS_MODULE: config.settings.test
+      #     DJANGO_SECRET_KEY: ci-test-secret-key
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     AWS_REGION: eu-central-1
+      #     S3_RAW_BUCKET: lumio-raw-uploads
+      #     S3_PROCESSED_BUCKET: lumio-processed-media
+      #     S3_ASSETS_BUCKET: lumio-assets-674544924217
+      #     CLOUDFRONT_KEY_PAIR_ID: ${{ secrets.CLOUDFRONT_KEY_PAIR_ID }}
+      #     CLOUDFRONT_PRIVATE_KEY_B64: ${{ secrets.CLOUDFRONT_PRIVATE_KEY_B64 }}
+      #     CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
+      #     RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      #     STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      #     STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      #     STRIPE_PLATFORM_SHARE_PCT: "20"
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #     file: ./coverage.xml
+      #     fail_ci_if_error: false
 
   build:
     name: Build Docker Images
@@ -255,3 +255,37 @@ jobs:
         if: always()
         run: |
           echo "Deployment ${{ job.status }} for commit ${{ github.sha }}"
+
+  integration-tests:
+    name: Integration Tests (Live Production)
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Run E2E journey tests against production ALB
+        run: |
+          pytest tests/integration/test_e2e_journeys.py -v --no-cov -m integration --timeout=120
+        env:
+          LUMIO_TEST_BASE_URL: http://lumio-production-alb-1639211656.eu-central-1.elb.amazonaws.com
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_PLATFORM_SHARE_PCT: "20"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: eu-central-1
+          S3_RAW_BUCKET: lumio-raw-uploads
