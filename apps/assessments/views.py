@@ -22,6 +22,7 @@ from .serializers import (
     QuizAttemptDetailSerializer,
     SubmitQuizAttemptSerializer,
     AttemptAnswerSerializer,
+    QuestionSerializer,
 )
 
 logger = structlog.get_logger()
