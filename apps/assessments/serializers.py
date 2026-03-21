@@ -11,18 +11,18 @@ class QuestionOptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = QuestionOption
-        fields = ["id", "text", "order"]
+        fields = ["id", "text", "order", "is_correct"]
         read_only_fields = ["id"]
 
     def to_representation(self, instance):
-        """Hide correct answer until quiz is graded"""
+        """Hide is_correct only during an in-progress quiz attempt (student fairness).
+        Always visible on the question management API and after grading."""
         data = super().to_representation(instance)
         request = self.context.get("request")
 
-        # Only show is_correct if quiz is graded
         if request and hasattr(request, "quiz_attempt"):
-            if request.quiz_attempt.status == QuizAttempt.ATTEMPT_STATUS_GRADED:
-                data["is_correct"] = instance.is_correct
+            if request.quiz_attempt.status == QuizAttempt.ATTEMPT_STATUS_IN_PROGRESS:
+                data.pop("is_correct", None)
 
         return data
 

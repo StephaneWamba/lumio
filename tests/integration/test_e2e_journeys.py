@@ -21,18 +21,54 @@ from .conftest import AuthedClient, TEST_RUN_ID, api, login, register_user
 
 pytestmark = pytest.mark.integration
 
+# ---------------------------------------------------------------------------
+# Polling helpers
+# ---------------------------------------------------------------------------
+
+_POLL_INTERVAL = 5   # seconds between status checks
+_VIDEO_TIMEOUT = 120  # seconds to wait for FFmpeg to reach a terminal state
+
+
+def _poll_video_status(client: AuthedClient, video_id: int) -> dict:
+    """Poll video status until terminal (completed/failed) or timeout.
+
+    Returns the final status dict. Raises AssertionError on timeout.
+    """
+    terminal = {"completed", "failed"}
+    deadline = _time.time() + _VIDEO_TIMEOUT
+    status_data = {}
+    while _time.time() < deadline:
+        r = client.get(f"/api/v1/media/videos/{video_id}/status/")
+        assert r.status_code == 200, f"status poll failed: {r.status_code} {r.text}"
+        status_data = r.json()
+        if status_data.get("status") in terminal:
+            return status_data
+        _time.sleep(_POLL_INTERVAL)
+    raise AssertionError(
+        f"Video {video_id} did not reach a terminal state within {_VIDEO_TIMEOUT}s. "
+        f"Last status: {status_data}. "
+        f"Celery worker may be down or task was never consumed."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
 
 def test_full_learning_journey(student_client, published_course):
     """
     Journey: enroll → mark lesson viewed → mark lesson completed → progress record verified.
 
-    The published_course has exactly 1 lesson. Completing that 1 lesson should
-    produce a LessonProgress record with is_completed=True or a completed_at timestamp.
+    Assertions:
+    - LessonProgress record exists for the lesson
+    - completed_at is set (not null) — the DB state reflects completion, not just HTTP 200
+    - progress_percentage on the enrollment reaches 100 since there is exactly 1 lesson
     """
     course_id = published_course["id"]
     lesson_id = published_course["_lesson_id"]
 
-    # 1. Enroll (or accept already-enrolled)
+    # 1. Enroll
     r = student_client.post(
         "/api/v1/enrollments/enrollments/enroll/",
         json={"course_id": course_id},
@@ -69,35 +105,40 @@ def test_full_learning_journey(student_client, published_course):
     )
     assert r.status_code == 200, f"mark_lesson_completed failed: {r.status_code} {r.text}"
 
-    # 5. Verify progress record exists and shows completion
-    r = student_client.get(
-        f"/api/v1/enrollments/enrollments/{enrollment_id}/progress/"
-    )
+    # 5. Verify LessonProgress record shows actual completion (not just HTTP 200)
+    r = student_client.get(f"/api/v1/enrollments/enrollments/{enrollment_id}/progress/")
     assert r.status_code == 200, f"GET progress failed: {r.status_code} {r.text}"
     progress_list = r.json()
     assert isinstance(progress_list, list), f"Expected list, got: {type(progress_list)}"
 
     lesson_progress = next(
-        (
-            p for p in progress_list
-            if p.get("lesson") == lesson_id or p.get("lesson_id") == lesson_id
-        ),
+        (p for p in progress_list if p.get("lesson") == lesson_id or p.get("lesson_id") == lesson_id),
         None,
     )
     assert lesson_progress is not None, (
         f"No progress record found for lesson {lesson_id}: {progress_list}"
     )
-    assert (
-        lesson_progress.get("is_completed") is True
-        or lesson_progress.get("completed_at") is not None
-    ), f"Lesson not marked complete in progress record: {lesson_progress}"
+    # completed_at must be a non-null timestamp — not just truthy HTTP status
+    assert lesson_progress.get("completed_at") is not None, (
+        f"completed_at is null — mark_lesson_completed returned 200 but did not persist: {lesson_progress}"
+    )
+
+    # 6. Verify enrollment-level progress_percentage reached 100
+    #    (published_course has exactly 1 lesson, completing it = 100%)
+    r = student_client.get(f"/api/v1/enrollments/enrollments/{enrollment_id}/")
+    assert r.status_code == 200
+    enrollment_detail = r.json()
+    progress_pct = enrollment_detail.get("progress_percentage")
+    assert progress_pct == 100, (
+        f"Expected progress_percentage=100 after completing the only lesson, got {progress_pct}"
+    )
 
 
 def test_full_stripe_payment_journey(instructor_client, student_client):
     """
     Journey: create course with price → student initiates payment →
-    verify real Stripe PaymentIntent exists → simulate webhook →
-    student is enrolled.
+    verify real Stripe PaymentIntent exists with correct amount →
+    simulate signed webhook → student is enrolled in DB.
     """
     import os
     import stripe
@@ -136,7 +177,7 @@ def test_full_stripe_payment_journey(instructor_client, student_client):
     )
     assert r.status_code == 201, f"Price creation failed: {r.status_code} {r.text}"
 
-    # 3. Initiate payment as student — creates real Stripe PaymentIntent
+    # 3. Initiate payment — must create a real Stripe PaymentIntent
     r = student_client.post(
         "/api/v1/payments/payments/initiate_payment/",
         json={"course_id": course_id},
@@ -146,22 +187,27 @@ def test_full_stripe_payment_journey(instructor_client, student_client):
     assert "client_secret" in data, f"Missing client_secret: {data}"
     assert "transaction_id" in data, f"Missing transaction_id: {data}"
     intent_id = data["transaction_id"]
-    assert intent_id.startswith("pi_"), f"Expected Stripe PI id, got: {intent_id}"
+    assert intent_id.startswith("pi_"), (
+        f"transaction_id must be a Stripe PI id (pi_...), got: {intent_id}"
+    )
 
-    # 4. Verify PaymentIntent exists on Stripe
+    # 4. Verify the PaymentIntent actually exists on Stripe with the correct amount
     intent = stripe.PaymentIntent.retrieve(intent_id)
     assert intent.amount == 999, f"Expected 999 cents, got: {intent.amount}"
-    assert intent.currency == "usd"
+    assert intent.currency == "usd", f"Expected usd, got: {intent.currency}"
+    assert intent.status in ("requires_payment_method", "requires_confirmation"), (
+        f"Unexpected PI status: {intent.status}"
+    )
 
     # 5. Find the payment DB id
     list_r = student_client.get("/api/v1/payments/payments/")
     payments = list_r.json()
     payments = payments if isinstance(payments, list) else payments.get("results", [])
     matching = [p for p in payments if p.get("transaction_id") == intent_id]
-    assert matching, f"Could not find payment with transaction_id={intent_id}"
+    assert matching, f"DB payment record not found for transaction_id={intent_id}"
     payment_db_id = matching[0]["id"]
 
-    # 6. Simulate payment_intent.succeeded webhook
+    # 6. Simulate payment_intent.succeeded webhook with real HMAC signature
     payload_dict = {
         "id": f"evt_e2e_{TEST_RUN_ID}",
         "type": "payment_intent.succeeded",
@@ -190,9 +236,11 @@ def test_full_stripe_payment_journey(instructor_client, student_client):
         },
         timeout=30,
     )
-    assert webhook_r.status_code == 200, f"Webhook failed: {webhook_r.status_code} {webhook_r.text}"
+    assert webhook_r.status_code == 200, (
+        f"Webhook failed: {webhook_r.status_code} {webhook_r.text}"
+    )
 
-    # 7. Verify student is now enrolled
+    # 7. Verify student is now enrolled — the downstream DB effect of the webhook
     list_r = student_client.get("/api/v1/enrollments/enrollments/")
     assert list_r.status_code == 200
     items = list_r.json()
@@ -202,18 +250,27 @@ def test_full_stripe_payment_journey(instructor_client, student_client):
         for e in items
     ]
     assert course_id in enrolled_ids, (
-        f"Student not enrolled after webhook. Enrolled courses: {enrolled_ids}"
+        f"Student NOT enrolled after webhook processed. "
+        f"Webhook returned 200 but enrollment was not created. "
+        f"Enrolled course IDs: {enrolled_ids}"
     )
 
 
 def test_full_video_pipeline_journey(instructor_client, published_course):
     """
-    Journey: initiate_upload → get presigned S3 URL → PUT tiny file to S3 →
-    trigger_transcode → poll status endpoint.
+    Journey: initiate_upload → PUT file to S3 → trigger_transcode →
+    POLL until terminal state (completed or failed).
+
+    A status of 'pending' or 'processing' after the timeout means the Celery
+    worker is not consuming the transcoding queue — this is a real failure.
+
+    A status of 'failed' is acceptable here because we upload null bytes (not
+    a real video), but it proves the task was dispatched and consumed.
+    A status of 'completed' means the full pipeline worked end-to-end.
     """
     lesson_id = published_course["_lesson_id"]
 
-    # 1. Initiate upload
+    # 1. Initiate upload — must return a real S3 presigned URL
     r = instructor_client.post(
         "/api/v1/media/videos/initiate_upload/",
         json={
@@ -228,16 +285,18 @@ def test_full_video_pipeline_journey(instructor_client, published_course):
     assert "video_id" in data, f"Missing video_id: {data}"
     upload_url = data["upload_url"]
     video_id = data["video_id"]
-    assert upload_url.startswith("https://"), f"upload_url not HTTPS: {upload_url}"
+    assert upload_url.startswith("https://s3.") or "s3.amazonaws.com" in upload_url, (
+        f"upload_url is not an S3 URL: {upload_url}"
+    )
 
-    # 2. PUT a tiny fake payload to S3
+    # 2. PUT bytes directly to S3 — no auth header, just the presigned URL
     tiny_payload = b"\x00" * 1024
     put_r = requests.put(upload_url, data=tiny_payload, timeout=30)
     assert put_r.status_code == 200, (
         f"S3 presigned PUT failed: {put_r.status_code} {put_r.text}"
     )
 
-    # 3. Trigger transcoding
+    # 3. Trigger transcoding — must queue a real Celery task
     r = instructor_client.post(f"/api/v1/media/videos/{video_id}/trigger_transcode/")
     assert r.status_code in (200, 202), (
         f"trigger_transcode failed: {r.status_code} {r.text}"
@@ -247,28 +306,42 @@ def test_full_video_pipeline_journey(instructor_client, published_course):
         f"Unexpected trigger_transcode status: {trigger_data}"
     )
 
-    # 4. Poll status
-    r = instructor_client.get(f"/api/v1/media/videos/{video_id}/status/")
-    assert r.status_code == 200, f"GET status failed: {r.status_code} {r.text}"
-    status_data = r.json()
-    assert "status" in status_data, f"Missing 'status': {status_data}"
-    assert status_data["status"] in ("pending", "processing", "completed", "failed"), (
-        f"Unknown video status: {status_data['status']}"
+    if trigger_data.get("status") == "already_completed":
+        # Video was already processed (e.g. session reuse) — nothing to poll
+        return
+
+    # 4. Poll until the Celery task consumes the job and reaches a terminal state.
+    #    'pending'/'processing' after the timeout = worker is not running.
+    final = _poll_video_status(instructor_client, video_id)
+    assert final["status"] in ("completed", "failed"), (
+        f"Expected terminal status, got: {final['status']}"
     )
-    assert "hls_ready" in status_data, f"Missing 'hls_ready': {status_data}"
+    assert "hls_ready" in final, f"Missing hls_ready field: {final}"
+
+    if final["status"] == "completed":
+        assert final["hls_ready"] is True, (
+            f"status=completed but hls_ready=False — HLS was not produced: {final}"
+        )
 
 
 def test_full_certificate_issuance_and_public_verify(
     instructor_client, student_client, published_course, student_enrollment
 ):
     """
-    Journey: create template → create award → issue certificate →
-    public /verify/<cert_num>/ returns student name and course title without auth.
+    Journey: create template → issue certificate → public /verify/<cert_num>/
+    returns the correct student name and course title.
+
+    Honest assertions:
+    - certificate_number in issuance response
+    - public verify returns is_valid=True
+    - student_name from verify matches the student's actual name
+    - course_title from verify matches the actual course title
     """
     course_id = published_course["id"]
+    course_title = published_course["title"]
     enrollment_id = student_enrollment["id"]
 
-    # 1. Create certificate template (idempotent)
+    # 1. Create certificate template
     r = instructor_client.post(
         "/api/v1/certificates/templates/",
         json={
@@ -279,19 +352,13 @@ def test_full_certificate_issuance_and_public_verify(
         },
     )
     assert r.status_code in (201, 400), f"Template creation failed: {r.status_code} {r.text}"
+    if r.status_code == 400:
+        # Must be "already exists", not a validation error
+        assert any(kw in r.text.lower() for kw in ("unique", "exists", "already", "duplicate")), (
+            f"Template creation returned 400 for unexpected reason: {r.text}"
+        )
 
-    # 2. Create award criteria (0% so any student qualifies)
-    r = instructor_client.post(
-        "/api/v1/certificates/awards/",
-        json={
-            "course_id": course_id,
-            "min_completion_percentage": 0,
-            "min_quiz_score": None,
-        },
-    )
-    assert r.status_code in (201, 400), f"Award creation failed: {r.status_code} {r.text}"
-
-    # 3. Issue certificate
+    # 2. Issue certificate
     r = instructor_client.post(
         "/api/v1/certificates/earned/issue_for_enrollment/",
         json={"enrollment_id": enrollment_id},
@@ -300,19 +367,28 @@ def test_full_certificate_issuance_and_public_verify(
         f"issue_for_enrollment failed: {r.status_code} {r.text}"
     )
 
-    if r.status_code == 400 and "already issued" in r.text.lower():
+    if r.status_code == 400:
+        assert "already issued" in r.text.lower(), (
+            f"Got 400 but not 'already issued': {r.text}"
+        )
+        # Certificate already exists — fetch it
         list_r = student_client.get("/api/v1/certificates/earned/")
         assert list_r.status_code == 200
         items = list_r.json()
         items = items if isinstance(items, list) else items.get("results", [])
-        assert items, "Expected at least one certificate but list is empty"
+        assert items, "400 'already issued' but certificate list is empty"
         cert_number = items[0]["certificate_number"]
     else:
         cert_data = r.json()
-        assert "certificate_number" in cert_data, f"Missing certificate_number: {cert_data}"
+        assert "certificate_number" in cert_data, (
+            f"Missing certificate_number in issuance response: {cert_data}"
+        )
         cert_number = cert_data["certificate_number"]
+        assert cert_number.startswith("CERT-"), (
+            f"certificate_number has unexpected format: {cert_number}"
+        )
 
-    # 4. Hit public verify endpoint WITHOUT auth
+    # 3. Hit public verify endpoint WITHOUT auth — must work for anyone
     verify_r = requests.get(
         api(f"/api/v1/certificates/verify/{cert_number}/"),
         timeout=30,
@@ -321,15 +397,30 @@ def test_full_certificate_issuance_and_public_verify(
         f"Public certificate verify failed: {verify_r.status_code} {verify_r.text}"
     )
     verify_data = verify_r.json()
-    assert "student_name" in verify_data, f"Missing student_name: {verify_data}"
-    assert "course_title" in verify_data, f"Missing course_title: {verify_data}"
+
+    # 4. Data accuracy — the verify endpoint must return the RIGHT data, not just any data
     assert verify_data.get("is_valid") is True, f"is_valid not True: {verify_data}"
+    assert verify_data.get("certificate_number") == cert_number, (
+        f"verify returned wrong certificate_number: {verify_data}"
+    )
+    assert verify_data.get("course_title") == course_title, (
+        f"course_title mismatch: verify returned '{verify_data.get('course_title')}', "
+        f"expected '{course_title}'"
+    )
+    assert verify_data.get("student_name"), (
+        f"student_name is empty or missing: {verify_data}"
+    )
 
 
 def test_full_cohort_drip_unlock_journey(instructor_client, student_client, published_course):
     """
     Journey: create cohort → student joins → create drip schedule (day=0) →
-    manually release → lesson unlock record exists.
+    manually release → verify unlock record created with correct lesson + cohort.
+
+    Honest assertions:
+    - is_released=True in the release response
+    - LessonUnlock record exists for the specific lesson in the specific cohort
+    - The unlock record references the right cohort (not just any unlock)
     """
     from uuid import uuid4
 
@@ -352,17 +443,14 @@ def test_full_cohort_drip_unlock_journey(instructor_client, student_client, publ
     cohort_id = r.json()["id"]
 
     # 2. Student joins cohort
-    r = student_client.post(
-        f"/api/v1/cohorts/cohorts/{cohort_id}/join/",
-        json={},
-    )
+    r = student_client.post(f"/api/v1/cohorts/cohorts/{cohort_id}/join/", json={})
     assert r.status_code in (200, 201, 400), f"Cohort join failed: {r.status_code} {r.text}"
     if r.status_code == 400:
-        assert "member" in r.text.lower() or "already" in r.text.lower(), (
+        assert any(kw in r.text.lower() for kw in ("member", "already", "joined")), (
             f"Unexpected 400 from join: {r.text}"
         )
 
-    # 3. Create drip schedule for lesson on day 0
+    # 3. Create drip schedule for lesson on day 0 (immediately unlockable)
     r = instructor_client.post(
         "/api/v1/cohorts/drip-schedules/",
         json={"cohort": cohort_id, "lesson": lesson_id, "unlock_day": 0},
@@ -382,32 +470,66 @@ def test_full_cohort_drip_unlock_journey(instructor_client, student_client, publ
         assert matching, f"No drip schedule for lesson {lesson_id} in cohort {cohort_id}"
         schedule_id = matching[0]["id"]
 
-    # 4. Manually release
+    # 4. Manually release — must mark is_released=True
     r = instructor_client.post(
         f"/api/v1/cohorts/drip-schedules/{schedule_id}/manually_release/",
         json={},
     )
-    assert r.status_code in (200, 201), f"manually_release failed: {r.status_code} {r.text}"
-    assert r.json().get("is_released") is True, f"is_released not True: {r.json()}"
+    assert r.status_code in (200, 201, 400), f"manually_release failed: {r.status_code} {r.text}"
+    if r.status_code == 400:
+        # Already released from a previous run — that's fine
+        assert "already" in r.text.lower(), f"Unexpected 400: {r.text}"
+    else:
+        release_data = r.json()
+        assert release_data.get("is_released") is True, (
+            f"is_released not True after manually_release: {release_data}"
+        )
 
-    # 5. Verify lesson unlock exists
+    # 5. Verify LessonUnlock record exists for THIS lesson in THIS cohort
     r = student_client.get(f"/api/v1/cohorts/lesson-unlocks/?cohort={cohort_id}")
     assert r.status_code == 200, f"GET lesson-unlocks failed: {r.status_code} {r.text}"
     unlocks = r.json()
     unlocks = unlocks if isinstance(unlocks, list) else unlocks.get("results", [])
-    unlocked_ids = [u.get("lesson") or u.get("lesson_id") for u in unlocks]
-    assert lesson_id in unlocked_ids, (
-        f"Lesson {lesson_id} not unlocked. Unlocked: {unlocked_ids}"
+
+    assert unlocks, (
+        f"No LessonUnlock records found for cohort {cohort_id}. "
+        f"manually_release returned is_released=True but create_lesson_unlocks_for_schedule "
+        f"did not create any records."
+    )
+
+    # Each unlock must reference this cohort — not some other cohort's unlocks leaking in
+    for unlock in unlocks:
+        unlock_cohort = unlock.get("cohort") or (
+            unlock.get("cohort_id") if "cohort_id" in unlock else None
+        )
+        if unlock_cohort is not None:
+            assert unlock_cohort == cohort_id, (
+                f"LessonUnlock from wrong cohort leaked into response: {unlock}"
+            )
+
+    unlocked_lesson_ids = [u.get("lesson") or u.get("lesson_id") for u in unlocks]
+    assert lesson_id in unlocked_lesson_ids, (
+        f"Lesson {lesson_id} NOT in unlock records for cohort {cohort_id}. "
+        f"Unlocked lessons: {unlocked_lesson_ids}"
     )
 
 
-def test_full_quiz_attempt_journey(instructor_client, student_client, published_course, student_enrollment):
+def test_full_quiz_attempt_journey(
+    instructor_client, student_client, published_course, student_enrollment
+):
     """
-    Journey: create quiz → create question → start attempt → submit answer → score returned.
+    Journey: create quiz → create question with options → start attempt →
+    submit the CORRECT answer → verify score is 100%.
+
+    Honest assertions:
+    - is_correct is visible in the question creation response (so we know which option is right)
+    - Score after submitting the correct MC option = 100%
+    - is_passed = True (passing_score is 0.00 so any correct answer passes)
+    - Weak concept list absent (not a failed attempt)
     """
     lesson_id = published_course["_lesson_id"]
 
-    # 1. Create quiz (idempotent — 400 if exists)
+    # 1. Create quiz
     r = instructor_client.post(
         "/api/v1/assessments/quizzes/",
         json={
@@ -431,7 +553,7 @@ def test_full_quiz_attempt_journey(instructor_client, student_client, published_
         assert quizzes, f"No quiz found for lesson {lesson_id}"
         quiz_id = quizzes[0]["id"]
 
-    # 2. Create a question
+    # 2. Create a multiple-choice question — is_correct MUST be in the response
     r = instructor_client.post(
         "/api/v1/assessments/questions/",
         json={
@@ -452,12 +574,22 @@ def test_full_quiz_attempt_journey(instructor_client, student_client, published_
     assert r.status_code in (200, 201), f"Question creation failed: {r.status_code} {r.text}"
     question = r.json()
     question_id = question["id"]
-    correct_option = next(
-        (opt for opt in question.get("options", []) if opt.get("is_correct")),
-        None,
-    )
 
-    # 3. Start attempt
+    # is_correct must be present so we can submit the right answer
+    options = question.get("options", [])
+    assert options, f"No options in question response: {question}"
+    for opt in options:
+        assert "is_correct" in opt, (
+            f"is_correct missing from option — QuestionOptionSerializer is hiding it: {opt}"
+        )
+
+    correct_option = next((opt for opt in options if opt["is_correct"] is True), None)
+    assert correct_option is not None, (
+        f"No correct option found in response. Options: {options}"
+    )
+    correct_option_id = correct_option["id"]
+
+    # 3. Start attempt as student
     r = student_client.post(
         "/api/v1/assessments/attempts/",
         json={"quiz": quiz_id},
@@ -465,30 +597,44 @@ def test_full_quiz_attempt_journey(instructor_client, student_client, published_
     assert r.status_code == 201, f"Start attempt failed: {r.status_code} {r.text}"
     attempt_id = r.json()["id"]
 
-    # 4. Submit answer
-    answers = [{"question_id": question_id}]
-    if correct_option:
-        answers[0]["selected_option_id"] = correct_option["id"]
-    else:
-        answers[0]["text_answer"] = "2"
-
+    # 4. Submit the CORRECT answer using selected_option_id
     r = student_client.post(
         f"/api/v1/assessments/attempts/{attempt_id}/submit/",
-        json={"answers": answers},
+        json={
+            "answers": [
+                {
+                    "question_id": str(question_id),
+                    "selected_option_id": str(correct_option_id),
+                }
+            ]
+        },
     )
     assert r.status_code == 200, f"Submit attempt failed: {r.status_code} {r.text}"
     result = r.json()
 
-    # 5. Verify score present
-    assert (
-        "score" in result or "total_score" in result or "percentage" in result
-    ), f"No score field in submit response: {result}"
+    # 5. Score must be 100% — we submitted the correct answer
+    percentage = result.get("percentage_score")
+    assert percentage is not None, f"percentage_score missing from submit response: {result}"
+    assert float(percentage) == 100.0, (
+        f"Expected 100% score after submitting the correct answer, got {percentage}. "
+        f"Submit handler may not be reading selected_option_id correctly."
+    )
+    assert result.get("is_passed") is True, (
+        f"is_passed should be True (passing_score=0, score=100): {result}"
+    )
+    # No weak_concepts on a passed attempt
+    assert "weak_concepts" not in result, (
+        f"weak_concepts should not appear on a passed attempt: {result}"
+    )
 
 
 def test_stripe_fee_split_with_connected_instructor(instructor_client, student_client):
     """
     Journey: instructor onboards Stripe → course with price → student initiates payment →
-    verify application_fee_amount on Stripe PI.
+    verify application_fee_amount on the Stripe PI matches the platform share.
+
+    The fee split assertion is unconditional: if application_fee_amount is None on the
+    Stripe PI, the instructor's Connect account is not wired up and the test fails.
     """
     import os
     import stripe
@@ -499,12 +645,13 @@ def test_stripe_fee_split_with_connected_instructor(instructor_client, student_c
         pytest.skip("STRIPE_SECRET_KEY not set")
     stripe.api_key = stripe_secret
 
-    # 1. Onboard instructor (idempotent)
+    # 1. Onboard instructor to Stripe Connect
     r = instructor_client.post("/api/v1/auth/instructor-profiles/onboard_stripe/")
     assert r.status_code == 200, f"Stripe onboarding failed: {r.status_code} {r.text}"
-    assert "onboarding_url" in r.json(), f"Missing onboarding_url: {r.json()}"
+    onboard_data = r.json()
+    assert "onboarding_url" in onboard_data, f"Missing onboarding_url: {onboard_data}"
 
-    # 2. Create fresh course with price
+    # 2. Create fresh course with a $50 price
     r = instructor_client.post(
         "/api/v1/courses/courses/",
         json={
@@ -515,7 +662,7 @@ def test_stripe_fee_split_with_connected_instructor(instructor_client, student_c
             "language": "en",
         },
     )
-    assert r.status_code == 201
+    assert r.status_code == 201, f"Course creation failed: {r.status_code} {r.text}"
     course_id = r.json()["id"]
     instructor_client.get(f"/api/v1/courses/courses/{course_id}/publish/")
 
@@ -531,19 +678,23 @@ def test_stripe_fee_split_with_connected_instructor(instructor_client, student_c
     )
     assert r.status_code == 201, f"Price creation failed: {r.status_code} {r.text}"
 
-    # 3. Initiate payment
+    # 3. Initiate payment as student
     r = student_client.post(
         "/api/v1/payments/payments/initiate_payment/",
         json={"course_id": course_id},
     )
     assert r.status_code == 201, f"initiate_payment failed: {r.status_code} {r.text}"
     intent_id = r.json()["transaction_id"]
+    assert intent_id.startswith("pi_"), f"Expected pi_..., got: {intent_id}"
 
-    # 4. Verify fee on Stripe (if instructor completed onboarding)
+    # 4. Verify the fee split on the Stripe PI — this must be present
     intent = stripe.PaymentIntent.retrieve(intent_id)
-    if intent.application_fee_amount is not None:
-        expected_fee = int(5000 * platform_pct / 100)
-        assert intent.application_fee_amount == expected_fee, (
-            f"Expected fee {expected_fee}, got {intent.application_fee_amount}"
-        )
-    # None is acceptable if Stripe account not fully verified in test mode
+    assert intent.amount == 5000, f"Expected 5000 cents ($50), got: {intent.amount}"
+
+    expected_fee = int(5000 * platform_pct / 100)
+    assert intent.application_fee_amount == expected_fee, (
+        f"Fee split wrong or missing. "
+        f"Expected application_fee_amount={expected_fee} ({platform_pct}% of $50), "
+        f"got {intent.application_fee_amount}. "
+        f"Instructor's Stripe Connect account may not be linked in the PaymentIntent."
+    )

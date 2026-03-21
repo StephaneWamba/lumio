@@ -280,7 +280,8 @@ class QuizAttemptViewSet(viewsets.ModelViewSet):
 
         for answer_data in answers_data:
             question_id = answer_data.get("question_id")
-            answer_value = answer_data.get("answer")
+            # Accept both "answer" (generic) and "selected_option_id" (MC-specific)
+            answer_value = answer_data.get("answer") or answer_data.get("selected_option_id")
 
             question = questions_map.get(str(question_id))
             if not question:
