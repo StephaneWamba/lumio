@@ -204,6 +204,8 @@ class SearchAPITests(APITestCase):
         )
 
         # Create search index entries
+        from django.contrib.postgres.search import SearchVector
+
         for i in range(5):
             SearchIndex.objects.create(
                 content_type="course",
@@ -219,6 +221,11 @@ class SearchAPITests(APITestCase):
                 enrollment_count=500 + (i * 50),
                 is_published=True,
             )
+
+        # Populate search_vector so PostgreSQL full-text search works
+        SearchIndex.objects.update(
+            search_vector=SearchVector("title", "description", "instructor_name", "category")
+        )
 
     def test_search_list(self):
         """Test listing search results"""
