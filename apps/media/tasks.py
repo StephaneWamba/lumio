@@ -72,10 +72,16 @@ def transcode_video(self: Any, video_file_id: int) -> dict:
 
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Download raw video from S3
+            # Download raw video from S3.
+            # Use get_object() + stream instead of download_file() to bypass the
+            # internal HeadObject call that download_file() makes — boto3 >= 1.35
+            # adds x-amz-checksum-mode:ENABLED to HeadObject which S3 rejects with
+            # 400 for objects uploaded via presigned URLs (no stored checksum).
             raw_path = os.path.join(tmpdir, "input.mp4")
             logger.info("downloading_raw_video", s3_key=video.s3_key_raw, lesson_id=lesson_id)
-            s3.download_file(settings.S3_RAW_BUCKET, video.s3_key_raw, raw_path)
+            obj = s3.get_object(Bucket=settings.S3_RAW_BUCKET, Key=video.s3_key_raw)
+            with open(raw_path, "wb") as fh:
+                fh.write(obj["Body"].read())
 
             hls_keys = []
             manifest_lines = ["#EXTM3U", "#EXT-X-VERSION:3"]
@@ -154,12 +160,19 @@ def transcode_video(self: Any, video_file_id: int) -> dict:
         return {"lesson_id": lesson_id, "master_key": master_key, "variants": hls_keys}
 
     except Exception as exc:
-        logger.error("transcode_failed", lesson_id=lesson_id, error=str(exc))
-        try:
+        error_msg = str(exc)
+        logger.error(
+            "transcode_failed",
+            lesson_id=lesson_id,
+            error=error_msg,
+            attempt=self.request.retries + 1,
+            max_attempts=self.max_retries + 1,
+        )
+        if self.request.retries < self.max_retries:
             raise self.retry(exc=exc)
-        except self.MaxRetriesExceededError:
-            # All retries exhausted — mark as permanently failed
-            video.status = VideoFile.STATUS_FAILED
-            video.error_message = str(exc)
-            video.save(update_fields=["status", "error_message"])
-            raise
+        # All retries exhausted — mark as permanently failed before propagating.
+        logger.error("transcode_permanently_failed", lesson_id=lesson_id, video_id=video_file_id)
+        video.status = VideoFile.STATUS_FAILED
+        video.error_message = error_msg
+        video.save(update_fields=["status", "error_message"])
+        raise
