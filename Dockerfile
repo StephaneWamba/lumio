@@ -23,10 +23,18 @@ COPY manage.py ./
 # Runtime stage - minimal image
 FROM python:3.12-slim
 
-# Install only runtime dependencies
+# Install runtime dependencies (libpq5 for Postgres, WeasyPrint GTK/Pango stack for PDF)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
+    libglib2.0-0 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf2.0-0 \
+    libffi8 \
+    shared-mime-info \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy venv from builder
