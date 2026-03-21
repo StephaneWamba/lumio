@@ -193,14 +193,21 @@ class EarnedCertificateViewSet(viewsets.ReadOnlyModelViewSet):
             pdf_s3_key=pdf_s3_key,
         )
 
-        # Email student with PDF attached
-        email_service.send_certificate_email(
-            student_email=enrollment.student.email,
-            student_name=enrollment.student.name,
-            course_title=enrollment.course.title,
-            certificate_number=certificate_number,
-            pdf_s3_key=pdf_s3_key,
-        )
+        # Email student with PDF attached (best-effort — don't fail cert issuance if email fails)
+        try:
+            email_service.send_certificate_email(
+                student_email=enrollment.student.email,
+                student_name=enrollment.student.name,
+                course_title=enrollment.course.title,
+                certificate_number=certificate_number,
+                pdf_s3_key=pdf_s3_key,
+            )
+        except Exception:
+            logger.warning(
+                "certificate_email_failed",
+                certificate_number=certificate_number,
+                student_email=enrollment.student.email,
+            )
 
         return certificate
 

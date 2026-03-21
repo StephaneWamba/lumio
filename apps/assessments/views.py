@@ -151,6 +151,75 @@ class QuizAttemptViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = None
 
+    def create(self, request, *args, **kwargs):
+        """Start a quiz attempt via POST /attempts/ with {"quiz": <id>}."""
+        quiz_id = request.data.get("quiz") or request.data.get("quiz_id")
+        if not quiz_id:
+            return Response({"error": "quiz is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        quiz = get_object_or_404(Quiz, id=quiz_id)
+        lesson = quiz.lesson
+
+        try:
+            enrollment = Enrollment.objects.get(student=request.user, course=lesson.section.course)
+        except Enrollment.DoesNotExist:
+            return Response(
+                {"error": "Not enrolled in this course"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        lesson_progress, _ = LessonProgress.objects.get_or_create(
+            enrollment=enrollment,
+            lesson=lesson,
+        )
+
+        if quiz.max_attempts:
+            attempt_count = QuizAttempt.objects.filter(
+                lesson_progress=lesson_progress, quiz=quiz
+            ).count()
+            if attempt_count >= quiz.max_attempts:
+                return Response(
+                    {"error": f"Maximum {quiz.max_attempts} attempts reached"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        last_attempt = (
+            QuizAttempt.objects.filter(lesson_progress=lesson_progress, quiz=quiz)
+            .order_by("-attempt_number")
+            .first()
+        )
+        if last_attempt and last_attempt.is_passed and not quiz.allow_retake:
+            return Response(
+                {"error": "Already passed this quiz"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            last_attempt = (
+                QuizAttempt.objects.select_for_update()
+                .filter(lesson_progress=lesson_progress, quiz=quiz)
+                .order_by("-attempt_number")
+                .first()
+            )
+            attempt_number = (last_attempt.attempt_number + 1) if last_attempt else 1
+            attempt = QuizAttempt.objects.create(
+                lesson_progress=lesson_progress,
+                quiz=quiz,
+                attempt_number=attempt_number,
+            )
+
+        lesson_progress.quiz_attempts += 1
+        lesson_progress.save()
+
+        data = QuizAttemptDetailSerializer(attempt).data
+        if quiz.adaptive_enabled:
+            ordered_questions = adaptive_engine.select_questions(quiz, enrollment, attempt_number)
+            data["selected_questions"] = QuestionSerializer(ordered_questions, many=True).data
+        else:
+            data["selected_questions"] = QuestionSerializer(quiz.questions.all(), many=True).data
+
+        return Response(data, status=status.HTTP_201_CREATED)
+
     def get_queryset(self):
         """Filter attempts by user"""
         if self.request.user.role == User.ROLE_STUDENT:
