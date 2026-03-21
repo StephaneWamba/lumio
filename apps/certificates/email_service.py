@@ -32,11 +32,11 @@ def send_certificate_email(
 
     resend.api_key = settings.RESEND_API_KEY
 
-    params = resend.Emails.SendParams(
-        from_="onboarding@resend.dev",
-        to=[student_email],
-        subject=f"Your Certificate for {course_title}",
-        html=f"""
+    params: resend.Emails.SendParams = {
+        "from": "onboarding@resend.dev",
+        "to": [student_email],
+        "subject": f"Your Certificate for {course_title}",
+        "html": f"""
 <p>Congratulations, {student_name}!</p>
 <p>
   You have successfully completed <strong>{course_title}</strong>.
@@ -46,13 +46,13 @@ def send_certificate_email(
 <p>Well done — keep learning!</p>
 <p>The Lumio Team</p>
 """,
-        attachments=[
-            resend.Attachment(
-                filename=f"{certificate_number}.pdf",
-                content=pdf_b64,
-            )
+        "attachments": [
+            {
+                "filename": f"{certificate_number}.pdf",
+                "content": pdf_b64,
+            }
         ],
-    )
+    }
 
     response = resend.Emails.send(params)
     logger.info(

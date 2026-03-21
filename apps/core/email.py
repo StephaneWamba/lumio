@@ -15,12 +15,12 @@ def send_transactional_email(to: str, subject: str, html: str) -> str:
     """
     resend.api_key = settings.RESEND_API_KEY
 
-    params = resend.Emails.SendParams(
-        from_="onboarding@resend.dev",
-        to=[to],
-        subject=subject,
-        html=html,
-    )
+    params: resend.Emails.SendParams = {
+        "from": "onboarding@resend.dev",
+        "to": [to],
+        "subject": subject,
+        "html": html,
+    }
 
     response = resend.Emails.send(params)
     email_id = response.get("id") if isinstance(response, dict) else getattr(response, "id", None)

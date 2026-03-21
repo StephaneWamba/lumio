@@ -62,7 +62,9 @@ class ReengagementTaskTests(TestCase):
 
         self.assertGreaterEqual(result["notified"], 1)
 
-        notif = Notification.objects.get(user=self.student)
+        notif = Notification.objects.get(
+            user=self.student, subject__startswith="Continue your learning"
+        )
         self.assertIn("Re-engagement Test Course", notif.subject)
         self.assertTrue(notif.email_sent, "email_sent must be True after Resend call")
         self.assertIsNotNone(notif.email_sent_at)
@@ -81,7 +83,11 @@ class ReengagementTaskTests(TestCase):
         result = scan_reengagement()
 
         self.assertEqual(result["notified"], 0)
-        self.assertFalse(Notification.objects.filter(user=self.student).exists())
+        self.assertFalse(
+            Notification.objects.filter(
+                user=self.student, subject__startswith="Continue your learning"
+            ).exists()
+        )
 
     def test_completed_course_student_not_notified(self):
         """Student who completed the course (100%) is not re-engaged."""

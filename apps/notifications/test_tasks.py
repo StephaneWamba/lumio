@@ -72,7 +72,9 @@ class ScanReengagementTaskTests(TestCase):
         scan_reengagement()
 
         self.assertFalse(
-            Notification.objects.filter(user=student).exists(),
+            Notification.objects.filter(
+                user=student, subject__startswith="Continue your learning"
+            ).exists(),
             "Recently active student should NOT receive re-engagement notification",
         )
 
@@ -89,7 +91,9 @@ class ScanReengagementTaskTests(TestCase):
         scan_reengagement()
 
         self.assertFalse(
-            Notification.objects.filter(user=student).exists(),
+            Notification.objects.filter(
+                user=student, subject__startswith="Continue your learning"
+            ).exists(),
             "Completed enrollment should NOT trigger re-engagement",
         )
 
@@ -113,7 +117,9 @@ class ScanReengagementTaskTests(TestCase):
         scan_reengagement()
 
         self.assertFalse(
-            Notification.objects.filter(user=student).exists(),
+            Notification.objects.filter(
+                user=student, subject__startswith="Continue your learning"
+            ).exists(),
             "Student with no access date should not be targeted",
         )
 

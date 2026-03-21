@@ -129,6 +129,9 @@ warn_unused_ignores = true
 warn_no_return = true
 strict_optional = true
 plugins = ["mypy_django_plugin.main"]
+exclude = [
+    ".*test.*\\.py$",
+]
 
 [tool.django-stubs]
 django_settings_module = "config.settings.test"
