@@ -11,7 +11,7 @@ import structlog
 
 from apps.enrollments.models import Enrollment, LessonProgress
 from apps.users.models import User
-from apps.users.permissions import IsInstructor, IsInstructorOrReadOnly
+from apps.users.permissions import IsInstructorOrReadOnly
 from .models import Quiz, Question, QuestionOption, QuizAttempt, AttemptAnswer
 from .serializers import (
     QuizListSerializer,

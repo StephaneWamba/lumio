@@ -6,6 +6,7 @@ Environment-specific overrides in staging.py and production.py
 from datetime import timedelta
 from pathlib import Path
 from decouple import config, Csv
+import structlog
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -267,8 +268,6 @@ LOGGING = {
         },
     },
 }
-
-import structlog
 
 structlog.configure(
     processors=[

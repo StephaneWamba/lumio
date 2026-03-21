@@ -1,5 +1,7 @@
 """Certificate PDF generation: WeasyPrint → PDF bytes → S3 upload."""
 
+from typing import Any
+
 import boto3
 import structlog
 from django.conf import settings
@@ -106,7 +108,7 @@ def render_and_upload(
     student_name: str,
     course_title: str,
     completion_date: str,
-    template,
+    template: Any,
 ) -> str:
     """
     Render a certificate as PDF via WeasyPrint and upload to S3 assets bucket.

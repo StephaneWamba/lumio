@@ -141,7 +141,6 @@ class PrometheusMetricsTests(TestCase):
         from config.metrics import (
             transcoding_job_started,
             transcoding_job_completed,
-            transcoding_job_failed,
             transcoding_duration_seconds,
         )
         from prometheus_client import Counter, Histogram

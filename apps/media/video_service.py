@@ -9,6 +9,8 @@ import structlog
 from botocore.signers import CloudFrontSigner
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
+from typing import cast
 from django.conf import settings
 
 logger = structlog.get_logger(__name__)
@@ -54,8 +56,8 @@ def _rsa_signer(message: bytes) -> bytes:
     """Sign message with CloudFront private key (RSA-SHA1 as required by CloudFront)."""
     private_key_b64 = settings.CLOUDFRONT_PRIVATE_KEY_B64
     private_key_pem = base64.b64decode(private_key_b64)
-    private_key = serialization.load_pem_private_key(private_key_pem, password=None)
-    return private_key.sign(message, padding.PKCS1v15(), hashes.SHA1())  # noqa: S303
+    rsa_key = cast(RSAPrivateKey, serialization.load_pem_private_key(private_key_pem, password=None))
+    return rsa_key.sign(message, padding.PKCS1v15(), hashes.SHA1())  # noqa: S303
 
 
 def generate_cloudfront_signed_url(s3_key: str) -> tuple[str, datetime]:

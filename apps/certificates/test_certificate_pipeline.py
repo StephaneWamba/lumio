@@ -11,7 +11,6 @@ Exercises:
 """
 
 import boto3
-import re
 import uuid
 from django.conf import settings
 from django.test import TestCase

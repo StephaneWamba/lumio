@@ -95,7 +95,7 @@ class UserAuthenticationTests(TestCase):
 
     def test_jwt_token_obtain(self):
         """Test JWT token endpoint"""
-        user = User.objects.create_user(
+        User.objects.create_user(
             email=self.user_data["email"],
             name=self.user_data["name"],
             password=self.user_data["password"],
@@ -114,7 +114,7 @@ class UserAuthenticationTests(TestCase):
 
     def test_jwt_token_refresh(self):
         """Test JWT token refresh"""
-        user = User.objects.create_user(
+        User.objects.create_user(
             email=self.user_data["email"],
             name=self.user_data["name"],
             password=self.user_data["password"],

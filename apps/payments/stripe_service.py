@@ -1,5 +1,7 @@
 """Stripe API wrapper — PaymentIntents, Connect, Refunds, Webhooks."""
 
+from decimal import Decimal
+
 import stripe
 import structlog
 from django.conf import settings
@@ -13,7 +15,7 @@ def _client():
 
 
 def create_payment_intent(
-    amount_decimal,
+    amount_decimal: Decimal,
     currency: str,
     metadata: dict,
     idempotency_key: str,

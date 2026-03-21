@@ -87,7 +87,7 @@ def scan_reengagement():
 
 
 @shared_task(name="notifications.send_enrollment_welcome")
-def send_enrollment_welcome(enrollment_id: int):
+def send_enrollment_welcome(enrollment_id: int) -> None:
     """Send a welcome email when a student enrolls in a course.
 
     Called via .delay() from the Enrollment post_save signal.

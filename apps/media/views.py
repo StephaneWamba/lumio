@@ -6,8 +6,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 import structlog
 
-from django.utils import timezone
-
 from apps.courses.models import Lesson
 from .models import VideoFile, CloudFrontSignedUrl
 from .serializers import VideoFileSerializer, VideoUploadInitiateSerializer
@@ -133,7 +131,13 @@ class SignedVideoUrlView(viewsets.ViewSet):
             pass
 
         # Generate new signed CloudFront URL and cache it
-        signed_url, expires_at = generate_cloudfront_signed_url(video.s3_key_hls_manifest)
+        hls_key = video.s3_key_hls_manifest
+        if hls_key is None:
+            return Response(
+                {"error": "HLS manifest key not available"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        signed_url, expires_at = generate_cloudfront_signed_url(hls_key)
 
         CloudFrontSignedUrl.objects.update_or_create(
             lesson=lesson,

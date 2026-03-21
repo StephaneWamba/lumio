@@ -208,8 +208,6 @@ class PaymentTests(TestCase):
         from apps.payments.models import PaymentLog
 
         stripe.api_key = settings.STRIPE_SECRET_KEY
-        price = self.price  # $99.99 USD
-
         # Create a real PaymentIntent
         self.client.force_authenticate(user=self.student)
         r = self.client.post(
@@ -333,7 +331,8 @@ class InvoiceTests(TestCase):
         import time
         ts = int(time.time())
         signed_payload = f"{ts}.{payload.decode()}"
-        import hmac, hashlib
+        import hmac
+        import hashlib
         sig = hmac.new(
             settings.STRIPE_WEBHOOK_SECRET.encode(),
             signed_payload.encode(),
@@ -353,4 +352,6 @@ class InvoiceTests(TestCase):
         payment.refresh_from_db()
         self.assertEqual(payment.status, Payment.STATUS_COMPLETED)
         self.assertTrue(Invoice.objects.filter(payment=payment).exists())
-        self.assertTrue(Enrollment.objects.filter(student=self.student, course=self.course).exists())
+        self.assertTrue(
+            Enrollment.objects.filter(student=self.student, course=self.course).exists()
+        )

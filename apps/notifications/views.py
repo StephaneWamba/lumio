@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
-from apps.users.permissions import IsAdmin, IsInstructor, IsInstructorOrReadOnly
+from apps.users.permissions import IsAdmin, IsInstructorOrReadOnly
 from .models import (
     NotificationTemplate,
     NotificationPreference,

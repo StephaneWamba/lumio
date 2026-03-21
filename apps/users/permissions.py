@@ -99,9 +99,8 @@ class IsEnrolledStudent(permissions.BasePermission):
         # Check enrollment
         if hasattr(obj, "id"):  # Course object
             return Enrollment.objects.filter(
-                user=request.user,
+                student=request.user,
                 course=obj,
-                status="active",
             ).exists()
 
         return False
@@ -127,9 +126,8 @@ class CanAccessLesson(permissions.BasePermission):
         # Check enrollment in course
         if hasattr(obj, "section") and hasattr(obj.section, "course"):
             enrollment = Enrollment.objects.filter(
-                user=request.user,
+                student=request.user,
                 course=obj.section.course,
-                status="active",
             ).first()
 
             if not enrollment:
@@ -138,7 +136,8 @@ class CanAccessLesson(permissions.BasePermission):
             # Check prerequisites
             if obj.prerequisite_lesson:
                 has_prerequisite = ProgressEvent.objects.filter(
-                    enrollment=enrollment,
+                    student=enrollment.student,
+                    course=enrollment.course,
                     lesson=obj.prerequisite_lesson,
                     event_type="lesson_completed",
                 ).exists()
@@ -171,9 +170,8 @@ class CanTakeQuiz(permissions.BasePermission):
         if hasattr(obj, "lesson") and hasattr(obj.lesson, "section"):
             course = obj.lesson.section.course
             return Enrollment.objects.filter(
-                user=request.user,
+                student=request.user,
                 course=course,
-                status="active",
             ).exists()
 
         return False

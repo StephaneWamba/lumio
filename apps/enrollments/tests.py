@@ -319,7 +319,7 @@ class ProgressEventTests(TestCase):
 
     def test_instructor_sees_enrollments_progress(self):
         """Test instructor can see progress of enrolled students"""
-        enrollment = Enrollment.objects.create(
+        Enrollment.objects.create(
             student=self.student,
             course=self.course,
         )

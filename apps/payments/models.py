@@ -181,7 +181,8 @@ class Payment(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user.name} - {self.amount} {self.currency}"
+        user_name = self.user.name if self.user else "Unknown"
+        return f"{user_name} - {self.amount} {self.currency}"
 
 
 class Invoice(models.Model):
@@ -298,4 +299,5 @@ class PaymentLog(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.payment.user.name} - {self.get_log_type_display()}"
+        user_name = self.payment.user.name if self.payment.user else "Unknown"
+        return f"{user_name} - {self.get_log_type_display()}"

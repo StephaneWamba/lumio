@@ -50,7 +50,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        "OPTIONS": {"min_length": 10},
+        "OPTIONS": {"min_length": 10},  # type: ignore[dict-item]
     },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -70,4 +70,4 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F821
 }
 
 # ── Logging: errors only to console (CloudWatch picks up stdout) ──────────
-LOGGING["root"]["level"] = "WARNING"  # noqa: F821
+LOGGING["root"]["level"] = "WARNING"  # noqa: F821  # type: ignore[index]

@@ -263,7 +263,10 @@ class SignedVideoUrlTests(TestCase):
         self._create_completed_video()
         # Inject a cached (valid) signed URL record directly
         expires_at = timezone.now() + timedelta(hours=12)
-        cached_url = "https://d123456.cloudfront.net/master.m3u8?Expires=9999999999&Signature=abc&Key-Pair-Id=K123"
+        cached_url = (
+            "https://d123456.cloudfront.net/master.m3u8"
+            "?Expires=9999999999&Signature=abc&Key-Pair-Id=K123"
+        )
         CloudFrontSignedUrl.objects.create(
             lesson=self.lesson,
             signed_url=cached_url,
@@ -284,7 +287,10 @@ class SignedVideoUrlTests(TestCase):
         expired_at = timezone.now() - timedelta(hours=1)
         CloudFrontSignedUrl.objects.create(
             lesson=self.lesson,
-            signed_url="https://d123456.cloudfront.net/master.m3u8?Expires=1&Signature=old&Key-Pair-Id=K123",
+            signed_url=(
+                "https://d123456.cloudfront.net/master.m3u8"
+                "?Expires=1&Signature=old&Key-Pair-Id=K123"
+            ),
             expires_at=expired_at,
         )
         self.client.force_authenticate(user=self.student)
@@ -294,6 +300,12 @@ class SignedVideoUrlTests(TestCase):
         self.assertIn("expires_at", response.data)
         # A real CloudFront signed URL must contain the query parameters added by the signer
         signed_url = response.data["signed_url"]
-        self.assertTrue(signed_url.startswith("https://"), f"Expected https:// URL, got: {signed_url}")
-        self.assertIn("Signature=", signed_url, f"Expected CloudFront Signature param in URL: {signed_url}")
-        self.assertIn("Key-Pair-Id=", signed_url, f"Expected Key-Pair-Id param in URL: {signed_url}")
+        self.assertTrue(
+            signed_url.startswith("https://"), f"Expected https:// URL, got: {signed_url}"
+        )
+        self.assertIn(
+            "Signature=", signed_url, f"Expected CloudFront Signature param in URL: {signed_url}"
+        )
+        self.assertIn(
+            "Key-Pair-Id=", signed_url, f"Expected Key-Pair-Id param in URL: {signed_url}"
+        )

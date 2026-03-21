@@ -20,7 +20,10 @@ class CertificateTemplate(models.Model):
     )
     description = models.TextField(blank=True)
     content = models.TextField(
-        help_text="Certificate body text with optional placeholders: {student_name}, {course_title}, {completion_date}"
+        help_text=(
+            "Certificate body text with optional placeholders: "
+            "{student_name}, {course_title}, {completion_date}"
+        )
     )
 
     # Branding

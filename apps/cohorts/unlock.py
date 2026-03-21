@@ -12,7 +12,7 @@ def create_lesson_unlocks_for_schedule(schedule: DripSchedule) -> int:
     If drip_type is 'section', unlock every lesson in the section.
     Skips members who already have an unlock for the same (enrollment, lesson) pair.
     """
-    from apps.enrollments.models import Enrollment
+    from apps.enrollments.models import Enrollment  # noqa: F401
 
     # Determine which lessons to unlock
     if schedule.drip_type == DripSchedule.DRIP_TYPE_LESSON:

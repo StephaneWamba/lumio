@@ -186,6 +186,3 @@ class SubmitQuizAttemptSerializer(serializers.Serializer):
         ),
         help_text="List of {question_id, answer} objects",
     )
-
-
-from django.db import models

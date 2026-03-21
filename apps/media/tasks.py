@@ -8,6 +8,7 @@ import boto3
 import structlog
 from celery import shared_task
 from django.conf import settings
+from typing import Any
 
 from .models import VideoFile
 
@@ -30,7 +31,7 @@ def _s3_client():
 
 
 @shared_task(name="media.transcode_video", bind=True, max_retries=3, default_retry_delay=60)
-def transcode_video(self, video_file_id: int) -> dict:
+def transcode_video(self: Any, video_file_id: int) -> dict:
     """
     Download raw video from S3, transcode to HLS (480p/720p/1080p), upload to processed bucket.
     Idempotent: marks VideoFile.status throughout for safe retry.
@@ -94,7 +95,9 @@ def transcode_video(self, video_file_id: int) -> dict:
                 logger.info("ffmpeg_start", variant=variant["name"], lesson_id=lesson_id)
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
                 if result.returncode != 0:
-                    raise RuntimeError(f"FFmpeg failed for {variant['name']}: {result.stderr[-500:]}")
+                    raise RuntimeError(
+                        f"FFmpeg failed for {variant['name']}: {result.stderr[-500:]}"
+                    )
 
                 # Upload all segment files and m3u8 to processed bucket
                 s3_prefix = f"hls/{lesson_id}/{variant['name']}"
@@ -110,7 +113,8 @@ def transcode_video(self, video_file_id: int) -> dict:
                 # Bandwidth value for master manifest (strip 'k', multiply by 1000)
                 bw = int(variant["bitrate"].replace("k", "")) * 1000
                 manifest_lines.append(
-                    f"#EXT-X-STREAM-INF:BANDWIDTH={bw},RESOLUTION={variant['scale'].replace(':', 'x')}"
+                    "#EXT-X-STREAM-INF:"
+                    f"BANDWIDTH={bw},RESOLUTION={variant['scale'].replace(':', 'x')}"
                 )
                 manifest_lines.append(f"{variant['name']}/index.m3u8")
 

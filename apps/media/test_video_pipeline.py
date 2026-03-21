@@ -16,7 +16,6 @@ from apps.courses.models import Course, Section, Lesson
 from apps.media.models import VideoFile, CloudFrontSignedUrl
 
 
-
 class PresignedUploadTests(TestCase):
     """Presigned S3 upload URL — hits real S3."""
 

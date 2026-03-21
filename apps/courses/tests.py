@@ -43,7 +43,7 @@ class CourseTests(TestCase):
 
     def test_list_unpublished_courses_as_student(self):
         """Test student can't see unpublished courses"""
-        unpublished = Course.objects.create(
+        Course.objects.create(
             instructor=self.instructor,
             title="Unpublished Course",
             is_published=False,
@@ -56,7 +56,7 @@ class CourseTests(TestCase):
 
     def test_list_all_courses_as_instructor(self):
         """Test instructor can see all their courses"""
-        unpublished = Course.objects.create(
+        Course.objects.create(
             instructor=self.instructor,
             title="Unpublished Course",
             is_published=False,

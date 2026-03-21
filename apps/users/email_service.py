@@ -53,7 +53,8 @@ def send_password_reset_email(user_email: str, user_name: str, token: str) -> No
                     f"<p>Hi {user_name},</p>"
                     f"<p>Click the link below to reset your password:</p>"
                     f"<p><a href='{reset_url}'>Reset Password</a></p>"
-                    f"<p>This link expires in 1 hour. If you did not request this, ignore this email.</p>"
+                    "<p>This link expires in 1 hour. "
+                    "If you did not request this, ignore this email.</p>"
                 ),
             }
         )

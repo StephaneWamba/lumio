@@ -20,7 +20,6 @@ from .serializers import (
     LoginSerializer,
     CustomTokenObtainPairSerializer,
     ChangePasswordSerializer,
-    PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
     EmailVerificationSerializer,
     InstructorProfileSerializer,
@@ -128,7 +127,7 @@ class RefreshTokenView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-        except Exception as e:
+        except Exception:
             return Response(
                 {"error": "Invalid refresh token."},
                 status=status.HTTP_401_UNAUTHORIZED,

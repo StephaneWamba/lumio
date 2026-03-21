@@ -186,7 +186,7 @@ class QuizAttemptTests(TestCase):
             allow_retake=False,
         )
         # Create and submit first attempt
-        attempt = QuizAttempt.objects.create(
+        QuizAttempt.objects.create(
             lesson_progress=new_lesson_progress,
             quiz=quiz,
             attempt_number=1,

@@ -271,7 +271,7 @@ class ProgressEventViewSet(viewsets.ReadOnlyModelViewSet):
         # Filter by student if specified (instructors can view their students)
         if student_id:
             try:
-                enrollment = Enrollment.objects.get(
+                Enrollment.objects.get(
                     student_id=student_id,
                     course__instructor=self.request.user,
                 )

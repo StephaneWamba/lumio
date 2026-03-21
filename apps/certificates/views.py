@@ -17,7 +17,7 @@ from .serializers import (
 )
 from apps.courses.models import Course
 from apps.enrollments.models import Enrollment
-from apps.users.permissions import IsInstructorOrReadOnly, IsInstructor
+from apps.users.permissions import IsInstructorOrReadOnly
 from . import pdf_service, email_service
 
 

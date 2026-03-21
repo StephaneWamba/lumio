@@ -36,7 +36,9 @@ class NotificationTemplate(models.Model):
     name = models.CharField(max_length=255)
     subject = models.CharField(max_length=255, help_text="Email subject with optional placeholders")
     message = models.TextField(
-        help_text="Notification message with optional placeholders: {user_name}, {course_title}, etc."
+        help_text=(
+            "Notification message with optional placeholders: {user_name}, {course_title}, etc."
+        )
     )
 
     # Channel preferences
