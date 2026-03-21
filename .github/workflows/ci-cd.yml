@@ -247,9 +247,21 @@ jobs:
 
       - name: Wait for ECS service to stabilize
         run: |
-          aws ecs wait services-stable --cluster lumio \
-                                       --services lumio-app \
-                                       --region ${{ env.AWS_REGION }}
+          echo "Polling ECS until lumio-app is stable (up to 20 min)..."
+          for i in $(seq 1 80); do
+            STATUS=$(aws ecs describe-services --cluster lumio --services lumio-app \
+              --region ${{ env.AWS_REGION }} \
+              --query 'services[0].deployments[?status==`PRIMARY`].rolloutState' \
+              --output text)
+            echo "Attempt $i/80: rolloutState=$STATUS"
+            if [ "$STATUS" = "COMPLETED" ]; then
+              echo "Service is stable."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Timed out waiting for ECS service to stabilize."
+          exit 1
 
       - name: Deployment summary
         if: always()
