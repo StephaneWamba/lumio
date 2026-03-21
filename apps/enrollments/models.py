@@ -11,12 +11,12 @@ class Enrollment(models.Model):
 
     student = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="enrollments",
     )
     course = models.ForeignKey(
         Course,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="enrollments",
     )
 
@@ -70,12 +70,12 @@ class ProgressEvent(models.Model):
 
     student = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="progress_events",
     )
     course = models.ForeignKey(
         Course,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="progress_events",
     )
     lesson = models.ForeignKey(
@@ -118,7 +118,7 @@ class LessonProgress(models.Model):
 
     enrollment = models.ForeignKey(
         Enrollment,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="lesson_progress",
     )
     lesson = models.ForeignKey(

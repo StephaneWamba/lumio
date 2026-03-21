@@ -7,6 +7,7 @@ from rest_framework.response import Response
 import structlog
 
 from apps.courses.models import Lesson
+from apps.enrollments.models import Enrollment
 from .models import VideoFile, CloudFrontSignedUrl
 from .serializers import VideoFileSerializer, VideoUploadInitiateSerializer
 from .video_service import generate_presigned_upload_url, generate_cloudfront_signed_url
@@ -18,9 +19,24 @@ logger = structlog.get_logger()
 class VideoFileViewSet(viewsets.ReadOnlyModelViewSet):
     """Video file management (read-only for students, write via upload endpoint)"""
 
-    queryset = VideoFile.objects.all()
     serializer_class = VideoFileSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'role') and user.role == 'instructor':
+            # Instructors see only their own lessons' videos
+            return VideoFile.objects.filter(
+                lesson__section__course__instructor=user
+            ).select_related("lesson__section__course")
+        # Students see only completed videos for courses they're enrolled in
+        enrolled_course_ids = Enrollment.objects.filter(
+            student=user
+        ).values_list("course_id", flat=True)
+        return VideoFile.objects.filter(
+            lesson__section__course_id__in=enrolled_course_ids,
+            status=VideoFile.STATUS_COMPLETED,
+        ).select_related("lesson__section__course")
 
     @action(detail=False, methods=["post"])
     def initiate_upload(self, request):
@@ -115,12 +131,25 @@ class SignedVideoUrlView(viewsets.ViewSet):
     def get_video_url(self, request, lesson_id=None):
         """Get signed CloudFront URL for lesson video"""
         try:
-            lesson = Lesson.objects.get(id=lesson_id)
+            lesson = Lesson.objects.select_related("section__course__instructor").get(id=lesson_id)
         except Lesson.DoesNotExist:
             return Response(
                 {"error": "Lesson not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        # Check enrollment: students must be enrolled; instructors of the course have access
+        course = lesson.section.course
+        is_instructor = (course.instructor == request.user)
+        if not is_instructor:
+            if not Enrollment.objects.filter(
+                student=request.user,
+                course=course,
+            ).exists():
+                return Response(
+                    {"error": "You are not enrolled in this course"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         # Check if video is processed
         try:

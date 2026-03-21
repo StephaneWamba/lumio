@@ -30,7 +30,14 @@ def _s3_client():
     )
 
 
-@shared_task(name="media.transcode_video", bind=True, max_retries=3, default_retry_delay=60)
+@shared_task(
+    name="media.transcode_video",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    time_limit=7200,      # 2 hours — overrides the global 30-min limit for this task
+    soft_time_limit=6900, # soft limit fires SoftTimeLimitExceeded ~2 min before hard kill
+)
 def transcode_video(self: Any, video_file_id: int) -> dict:
     """
     Download raw video from S3, transcode to HLS (480p/720p/1080p), upload to processed bucket.
@@ -138,7 +145,11 @@ def transcode_video(self: Any, video_file_id: int) -> dict:
 
     except Exception as exc:
         logger.error("transcode_failed", lesson_id=lesson_id, error=str(exc))
-        video.status = VideoFile.STATUS_FAILED
-        video.error_message = str(exc)
-        video.save(update_fields=["status", "error_message"])
-        raise self.retry(exc=exc)
+        try:
+            raise self.retry(exc=exc)
+        except self.MaxRetriesExceededError:
+            # All retries exhausted — mark as permanently failed
+            video.status = VideoFile.STATUS_FAILED
+            video.error_message = str(exc)
+            video.save(update_fields=["status", "error_message"])
+            raise

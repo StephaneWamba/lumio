@@ -64,13 +64,23 @@ def check_completions():
             template=template,
         )
 
-        EarnedCertificate.objects.create(
+        cert, created = EarnedCertificate.objects.get_or_create(
             enrollment=enrollment,
-            template=template,
-            certificate_number=certificate_number,
-            rendered_content=rendered_content,
-            pdf_s3_key=pdf_s3_key,
+            defaults={
+                "template": template,
+                "certificate_number": certificate_number,
+                "rendered_content": rendered_content,
+                "pdf_s3_key": pdf_s3_key,
+            },
         )
+
+        if not created:
+            logger.info(
+                "certificate_already_exists",
+                enrollment_id=enrollment.id,
+                certificate_number=cert.certificate_number,
+            )
+            continue
 
         email_service.send_certificate_email(
             student_email=enrollment.student.email,

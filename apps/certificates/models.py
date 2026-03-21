@@ -133,7 +133,7 @@ class EarnedCertificate(models.Model):
 
     enrollment = models.OneToOneField(
         Enrollment,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="earned_certificate",
     )
     template = models.ForeignKey(

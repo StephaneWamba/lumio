@@ -31,7 +31,6 @@ class NotificationTemplate(models.Model):
     trigger = models.CharField(
         max_length=50,
         choices=TRIGGER_CHOICES,
-        unique=True,
     )
     name = models.CharField(max_length=255)
     subject = models.CharField(max_length=255, help_text="Email subject with optional placeholders")
@@ -47,6 +46,13 @@ class NotificationTemplate(models.Model):
     send_push = models.BooleanField(default=False)
 
     is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="notification_templates",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

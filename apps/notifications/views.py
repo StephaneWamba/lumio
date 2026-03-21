@@ -21,9 +21,8 @@ from .serializers import (
 
 
 class NotificationTemplateViewSet(viewsets.ModelViewSet):
-    """ViewSet for notification templates — instructors/admins can write"""
+    """ViewSet for notification templates — each instructor owns their own"""
 
-    queryset = NotificationTemplate.objects.all()
     serializer_class = NotificationTemplateSerializer
     filterset_fields = ["is_active", "trigger"]
 
@@ -31,6 +30,16 @@ class NotificationTemplateViewSet(viewsets.ModelViewSet):
         if self.request.method in SAFE_METHODS:
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsInstructorOrReadOnly()]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff or getattr(user, 'role', None) == 'admin':
+            return NotificationTemplate.objects.all()
+        # Each instructor sees only their own templates
+        return NotificationTemplate.objects.filter(created_by=user)
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
 
 class NotificationPreferenceViewSet(viewsets.ViewSet):

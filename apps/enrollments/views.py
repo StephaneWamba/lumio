@@ -55,9 +55,13 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter enrollments by user"""
         if self.request.user.role == User.ROLE_STUDENT:
-            return Enrollment.objects.filter(student=self.request.user)
+            return Enrollment.objects.filter(
+                student=self.request.user
+            ).select_related("course", "course__instructor")
         # Instructors see all enrollments in their courses
-        return Enrollment.objects.filter(course__instructor=self.request.user)
+        return Enrollment.objects.filter(
+            course__instructor=self.request.user
+        ).select_related("course", "student")
 
     def perform_create(self, serializer):
         """Create enrollment"""

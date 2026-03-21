@@ -171,27 +171,6 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
-    def mark_failed(self, request, pk=None):
-        """Mark payment as failed (called by frontend on card decline)."""
-        payment = self.get_object()
-
-        if payment.user != request.user and not request.user.is_staff:
-            self.permission_denied(request)
-
-        payment.status = Payment.STATUS_FAILED
-        payment.processor_response = request.data.get("error_message", "")
-        payment.save()
-
-        PaymentLog.objects.create(
-            payment=payment,
-            log_type=PaymentLog.LOG_TYPE_FAILED,
-            message="Payment failed",
-            details=payment.processor_response,
-        )
-
-        return Response(PaymentDetailSerializer(payment).data, status=status.HTTP_200_OK)
-
-    @action(detail=True, methods=["post"])
     def refund(self, request, pk=None):
         """Issue a real Stripe refund (admin or instructor only)."""
         payment = self.get_object()
@@ -211,6 +190,11 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         refund_amount = Decimal(str(request.data.get("amount", payment.amount)))
+        if refund_amount <= 0 or refund_amount > payment.amount:
+            return Response(
+                {"detail": f"Refund amount must be between 0.01 and {payment.amount}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         refund_cents = int(refund_amount * 100)
 
         stripe_service.create_refund(

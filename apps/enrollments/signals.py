@@ -1,5 +1,6 @@
 """Enrollment signals — fire Celery tasks on enrollment creation."""
 
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -12,7 +13,8 @@ def on_enrollment_created(sender, instance, created, **kwargs):
     if not created:
         return
 
-    # Import here to avoid circular imports at module load time
     from apps.notifications.tasks import send_enrollment_welcome
 
-    send_enrollment_welcome.delay(instance.id)
+    # Defer until after the DB transaction commits so the Celery worker
+    # can safely fetch the Enrollment row.
+    transaction.on_commit(lambda: send_enrollment_welcome.delay(instance.id))
