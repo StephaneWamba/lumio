@@ -4,6 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS  # noqa: F401
 from rest_framework.response import Response
+from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from decimal import Decimal
@@ -101,13 +102,20 @@ class QuizViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Create new attempt
-        attempt_number = (last_attempt.attempt_number + 1) if last_attempt else 1
-        attempt = QuizAttempt.objects.create(
-            lesson_progress=lesson_progress,
-            quiz=quiz,
-            attempt_number=attempt_number,
-        )
+        # Create new attempt — lock on lesson_progress to prevent duplicate attempt numbers
+        with transaction.atomic():
+            last_attempt = (
+                QuizAttempt.objects.select_for_update()
+                .filter(lesson_progress=lesson_progress, quiz=quiz)
+                .order_by("-attempt_number")
+                .first()
+            )
+            attempt_number = (last_attempt.attempt_number + 1) if last_attempt else 1
+            attempt = QuizAttempt.objects.create(
+                lesson_progress=lesson_progress,
+                quiz=quiz,
+                attempt_number=attempt_number,
+            )
 
         # Update lesson progress attempt counter
         lesson_progress.quiz_attempts += 1
@@ -191,26 +199,33 @@ class QuizAttemptViewSet(viewsets.ModelViewSet):
         total_points = Decimal("0")
         earned_points = Decimal("0")
 
+        # Prefetch all questions + options in 2 queries instead of 2N
+        question_ids = [a.get("question_id") for a in answers_data if a.get("question_id")]
+        questions_map = {
+            str(q.id): q
+            for q in Question.objects.filter(
+                id__in=question_ids, quiz=attempt.quiz
+            ).prefetch_related("options")
+        }
+
         for answer_data in answers_data:
             question_id = answer_data.get("question_id")
             answer_value = answer_data.get("answer")
 
-            try:
-                question = Question.objects.get(id=question_id, quiz=attempt.quiz)
-            except Question.DoesNotExist:
+            question = questions_map.get(str(question_id))
+            if not question:
                 continue
 
             total_points += question.points
 
             # Process answer based on question type
             if question.question_type == Question.QUESTION_TYPE_MULTIPLE_CHOICE:
-                try:
-                    option = QuestionOption.objects.get(id=answer_value)
-                    is_correct = option.is_correct
-                    points = question.points if is_correct else Decimal("0")
-                except QuestionOption.DoesNotExist:
-                    is_correct = False
-                    points = Decimal("0")
+                option = next(
+                    (o for o in question.options.all() if str(o.id) == str(answer_value)),
+                    None,
+                )
+                is_correct = option.is_correct if option is not None else False
+                points = question.points if is_correct else Decimal("0")
 
                 AttemptAnswer.objects.create(
                     attempt=attempt,
@@ -224,12 +239,13 @@ class QuizAttemptViewSet(viewsets.ModelViewSet):
                     earned_points += points
 
             elif question.question_type == Question.QUESTION_TYPE_TRUE_FALSE:
+                opts = list(question.options.all())
                 is_correct = (
                     answer_value.lower() == "true"
-                    and question.options.filter(text="True", is_correct=True).exists()
+                    and any(o.text == "True" and o.is_correct for o in opts)
                 ) or (
                     answer_value.lower() == "false"
-                    and question.options.filter(text="False", is_correct=True).exists()
+                    and any(o.text == "False" and o.is_correct for o in opts)
                 )
                 points = question.points if is_correct else Decimal("0")
 

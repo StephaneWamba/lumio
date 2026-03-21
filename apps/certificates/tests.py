@@ -393,3 +393,20 @@ class EarnedCertificateTests(TestCase):
                 certificate_number=duplicate_number,  # Same number — must raise
                 rendered_content=_render_content(self.template, enrollment2),
             )
+
+    def test_rendered_content_contains_student_name_and_course(self):
+        """Certificate rendered_content must include student name and course title."""
+        cert = EarnedCertificate.objects.create(
+            enrollment=self.enrollment,
+            template=self.template,
+            certificate_number=_make_certificate_number(),
+            rendered_content=_render_content(self.template, self.enrollment),
+        )
+        self.assertIn(
+            self.student.name, cert.rendered_content,
+            "Rendered certificate must contain the student's name",
+        )
+        self.assertIn(
+            self.course.title, cert.rendered_content,
+            "Rendered certificate must contain the course title",
+        )

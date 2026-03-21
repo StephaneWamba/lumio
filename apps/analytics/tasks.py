@@ -2,7 +2,8 @@
 
 import structlog
 from celery import shared_task
-from django.db.models import Avg
+from django.core.cache import cache
+from django.db.models import Avg, Count, Q
 
 from apps.courses.models import Course
 from apps.enrollments.models import Enrollment, LessonProgress
@@ -15,32 +16,39 @@ logger = structlog.get_logger(__name__)
 def refresh_analytics_cache():
     """Hourly: recalculate aggregated analytics for all published courses.
 
-    Uses get_or_create so courses without an existing analytics record
-    get one automatically on the first run.
+    Uses a single aggregate query per course instead of 6 separate ones.
+    Invalidates Redis cache after each save so retrieve() shows fresh data.
     """
     courses = Course.objects.filter(is_published=True)
     refreshed = 0
 
     for course in courses:
         analytics, _ = CourseAnalytics.objects.get_or_create(course=course)
-        enrollments = Enrollment.objects.filter(course=course)
 
-        analytics.total_enrollments = enrollments.count()
-        analytics.active_students = enrollments.filter(progress_percentage__gt=0).count()
-        analytics.completed_students = enrollments.filter(progress_percentage=100).count()
-        analytics.average_progress = (
-            enrollments.aggregate(Avg("progress_percentage"))["progress_percentage__avg"] or 0
+        # Single aggregate query replaces 4 separate count/avg queries
+        stats = Enrollment.objects.filter(course=course).aggregate(
+            total=Count("id"),
+            active=Count("id", filter=Q(progress_percentage__gt=0)),
+            completed=Count("id", filter=Q(progress_percentage=100)),
+            avg_progress=Avg("progress_percentage"),
         )
 
         quiz_avg = LessonProgress.objects.filter(
             enrollment__course=course,
             highest_quiz_score__isnull=False,
-        ).aggregate(Avg("highest_quiz_score"))["highest_quiz_score__avg"]
+        ).aggregate(avg=Avg("highest_quiz_score"))["avg"]
 
+        analytics.total_enrollments = stats["total"] or 0
+        analytics.active_students = stats["active"] or 0
+        analytics.completed_students = stats["completed"] or 0
+        analytics.average_progress = stats["avg_progress"] or 0
         if quiz_avg is not None:
             analytics.average_quiz_score = quiz_avg
 
         analytics.save()
+
+        # Invalidate Redis cache so next retrieve() reflects fresh DB data
+        cache.delete(f"analytics:course:{analytics.pk}")
         refreshed += 1
 
     logger.info("analytics_refresh_complete", refreshed=refreshed)

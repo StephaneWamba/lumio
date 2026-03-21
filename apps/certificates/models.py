@@ -100,28 +100,29 @@ class CertificateAward(models.Model):
             return enrollment.progress_percentage == 100
 
         if self.condition == self.CONDITION_SCORE_MINIMUM:
-            # Check if student has passing quiz scores
             from apps.enrollments.models import LessonProgress
+            from django.db.models import Avg
 
-            lesson_progresses = LessonProgress.objects.filter(enrollment=enrollment)
-            if not lesson_progresses.exists():
+            avg_score = LessonProgress.objects.filter(
+                enrollment=enrollment,
+                highest_quiz_score__isnull=False,
+            ).aggregate(avg=Avg("highest_quiz_score"))["avg"]
+            if avg_score is None:
                 return False
-            avg_score = sum(lp.highest_quiz_score or 0 for lp in lesson_progresses) / len(
-                lesson_progresses
-            )
             return avg_score >= self.minimum_score
 
         if self.condition == self.CONDITION_COURSE_COMPLETED_WITH_SCORE:
             if enrollment.progress_percentage != 100:
                 return False
             from apps.enrollments.models import LessonProgress
+            from django.db.models import Avg
 
-            lesson_progresses = LessonProgress.objects.filter(enrollment=enrollment)
-            if not lesson_progresses.exists():
+            avg_score = LessonProgress.objects.filter(
+                enrollment=enrollment,
+                highest_quiz_score__isnull=False,
+            ).aggregate(avg=Avg("highest_quiz_score"))["avg"]
+            if avg_score is None:
                 return False
-            avg_score = sum(lp.highest_quiz_score or 0 for lp in lesson_progresses) / len(
-                lesson_progresses
-            )
             return avg_score >= self.minimum_score
 
         return False

@@ -19,7 +19,7 @@ class UserAuthenticationTests(TestCase):
         self.token_url = reverse("token_obtain_pair")
 
         self.user_data = {
-            "email": "wambstephane@gmail.com",
+            "email": "testuser@test.lumio",
             "name": "Test User",
             "password": "TestPassword123!",
             "password2": "TestPassword123!",
@@ -52,7 +52,7 @@ class UserAuthenticationTests(TestCase):
     def test_user_registration_duplicate_email(self):
         """Test registration fails with duplicate email"""
         User.objects.create_user(
-            email="wambstephane@gmail.com",
+            email="testuser@test.lumio",
             name="Existing User",
             password="TestPassword123!",
         )
@@ -314,7 +314,9 @@ class PasswordResetTests(TestCase):
         self.password_reset_confirm_url = reverse("password_reset_confirm")
 
     def test_password_reset_request(self):
-        """Test password reset request endpoint"""
+        """Test password reset request stores a token in cache"""
+        from django.core.cache import cache
+
         response = self.client.post(
             self.password_reset_url,
             {"email": "wambstephane@gmail.com"},
@@ -331,7 +333,7 @@ class PasswordResetTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_password_reset_confirm(self):
-        """Test password reset confirm endpoint"""
+        """Test password reset actually changes the password"""
         from apps.users.token_service import generate_token
 
         token = generate_token("password_reset", self.user.id)
@@ -344,6 +346,26 @@ class PasswordResetTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Verify the password was actually changed
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewPassword123!"))
+
+    def test_password_reset_token_cannot_be_reused(self):
+        """A consumed reset token must be rejected on a second use"""
+        from apps.users.token_service import generate_token
+
+        token = generate_token("password_reset", self.user.id)
+        payload = {
+            "token": token,
+            "new_password": "NewPassword123!",
+            "new_password2": "NewPassword123!",
+        }
+        # First use must succeed
+        r1 = self.client.post(self.password_reset_confirm_url, payload)
+        self.assertEqual(r1.status_code, status.HTTP_200_OK)
+        # Second use must fail — token is consumed
+        r2 = self.client.post(self.password_reset_confirm_url, payload)
+        self.assertEqual(r2.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_password_reset_confirm_password_mismatch(self):
         """Test password reset confirm with mismatched passwords"""
@@ -367,11 +389,11 @@ class EmailVerificationTests(TestCase):
         self.verify_email_url = reverse("verify_email")
 
     def test_email_verification(self):
-        """Test email verification endpoint"""
+        """Test email verification endpoint marks user as verified"""
         from apps.users.token_service import generate_token
 
         user = User.objects.create_user(
-            email="wambstephane@gmail.com",
+            email="verify@test.lumio",
             name="Verify User",
             password="TestPassword123!",
             role=User.ROLE_STUDENT,
@@ -383,3 +405,5 @@ class EmailVerificationTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.data)
+        user.refresh_from_db()
+        self.assertTrue(user.is_email_verified)

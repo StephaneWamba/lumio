@@ -84,6 +84,9 @@ class CourseListSerializer(serializers.ModelSerializer):
         ]
 
     def get_section_count(self, obj):
+        # Use DB annotation if available (avoids N+1), fallback for direct instantiation
+        if hasattr(obj, "section_count"):
+            return obj.section_count
         return obj.sections.filter(is_published=True).count()
 
 

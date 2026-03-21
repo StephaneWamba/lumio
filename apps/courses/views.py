@@ -1,5 +1,6 @@
 """Course views"""
 
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.exceptions import PermissionDenied
@@ -50,8 +51,16 @@ class CourseViewSet(viewsets.ModelViewSet):
         """Filter published courses for students, all for instructor"""
         user = self.request.user
         if user and user.is_authenticated and user.role == User.ROLE_INSTRUCTOR:
-            return Course.objects.filter(instructor=user)
-        return Course.objects.filter(is_published=True)
+            qs = Course.objects.filter(instructor=user)
+        else:
+            qs = Course.objects.filter(is_published=True)
+        return qs.annotate(
+            section_count=Count(
+                "sections",
+                filter=Q(sections__is_published=True),
+                distinct=True,
+            )
+        ).prefetch_related("sections__lessons")
 
     def perform_create(self, serializer):
         """Set instructor to current user"""

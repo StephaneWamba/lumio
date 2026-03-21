@@ -4,6 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
 import structlog
@@ -32,10 +33,11 @@ class CohortViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter cohorts by user role"""
         if self.request.user.role == User.ROLE_STUDENT:
-            # Students see cohorts they're in or can join
-            return Cohort.objects.filter(course__is_published=True) | Cohort.objects.filter(
-                members__student=self.request.user
-            )
+            # Students see cohorts they're in or can join (distinct prevents duplicates)
+            return (
+                Cohort.objects.filter(course__is_published=True)
+                | Cohort.objects.filter(members__student=self.request.user)
+            ).distinct()
         # Instructors see cohorts for their courses
         return Cohort.objects.filter(course__instructor=self.request.user)
 
@@ -66,32 +68,36 @@ class CohortViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check max students
-        if cohort.max_students and cohort.member_count >= cohort.max_students:
-            return Response(
-                {"error": "Cohort is full"},
-                status=status.HTTP_400_BAD_REQUEST,
+        with transaction.atomic():
+            # Lock the cohort row to prevent concurrent over-enrollment
+            cohort = Cohort.objects.select_for_update().get(pk=cohort.pk)
+
+            # Check max students
+            if cohort.max_students and cohort.member_count >= cohort.max_students:
+                return Response(
+                    {"error": "Cohort is full"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Check already enrolled
+            if CohortMember.objects.filter(cohort=cohort, student=request.user).exists():
+                return Response(
+                    {"error": "Already a member of this cohort"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Create enrollment for the course first
+            enrollment, _ = Enrollment.objects.get_or_create(
+                student=request.user,
+                course=cohort.course,
             )
 
-        # Check already enrolled
-        if CohortMember.objects.filter(cohort=cohort, student=request.user).exists():
-            return Response(
-                {"error": "Already a member of this cohort"},
-                status=status.HTTP_400_BAD_REQUEST,
+            # Create cohort membership
+            member = CohortMember.objects.create(
+                cohort=cohort,
+                student=request.user,
+                enrollment=enrollment,
             )
-
-        # Create enrollment for the course first
-        enrollment, _ = Enrollment.objects.get_or_create(
-            student=request.user,
-            course=cohort.course,
-        )
-
-        # Create cohort membership
-        member = CohortMember.objects.create(
-            cohort=cohort,
-            student=request.user,
-            enrollment=enrollment,
-        )
 
         logger.info(
             "student_joined_cohort",

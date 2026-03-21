@@ -417,7 +417,7 @@ class StripeConnectOnboardingTests(TestCase):
         self.instructor.instructor_profile.refresh_from_db()
         stripe.api_key = settings.STRIPE_SECRET_KEY
         account_id = self.instructor.instructor_profile.stripe_account_id
-        # Only one account exists
-        accounts = stripe.Account.list(limit=10)
-        matching = [a for a in accounts.data if a.id == account_id]
-        self.assertEqual(len(matching), 1)
+        # Verify the specific account exists by direct retrieval (not limited list scan)
+        self.assertIsNotNone(account_id, "Stripe account ID should be stored on profile")
+        account = stripe.Account.retrieve(account_id)
+        self.assertEqual(account.id, account_id)

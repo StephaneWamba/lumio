@@ -68,11 +68,12 @@ class CourseAnalyticsTests(TestCase):
         self.assertEqual(response.data["count"], 0)
 
     def test_retrieve_analytics(self):
-        """Test retrieving analytics detail"""
+        """Test retrieving analytics returns correct course data"""
         self.client.force_authenticate(user=self.instructor)
         response = self.client.get(reverse("course-analytics-detail", args=[self.analytics.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["total_enrollments"], 1)
+        self.assertEqual(response.data["total_enrollments"], self.analytics.total_enrollments)
+        self.assertEqual(response.data["course"], self.course.id)
 
     def test_recalculate_analytics(self):
         """Test recalculating course analytics"""

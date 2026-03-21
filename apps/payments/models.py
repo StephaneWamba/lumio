@@ -100,13 +100,9 @@ class Payment(models.Model):
     ]
 
     PAYMENT_METHOD_CREDIT_CARD = "credit_card"
-    PAYMENT_METHOD_PAYPAL = "paypal"
-    PAYMENT_METHOD_BANK_TRANSFER = "bank_transfer"
 
     PAYMENT_METHOD_CHOICES = [
         (PAYMENT_METHOD_CREDIT_CARD, "Credit Card"),
-        (PAYMENT_METHOD_PAYPAL, "PayPal"),
-        (PAYMENT_METHOD_BANK_TRANSFER, "Bank Transfer"),
     ]
 
     user = models.ForeignKey(

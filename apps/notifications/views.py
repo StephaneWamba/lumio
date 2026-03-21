@@ -138,19 +138,20 @@ class NotificationViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"])
     def mark_all_as_read(self, request):
         """Mark all unread notifications as read"""
-        unread_notifications = Notification.objects.filter(
-            user=request.user,
-            is_read=False,
-        )
+        from django.utils import timezone
 
-        count = 0
-        for notification in unread_notifications:
-            notification.mark_as_read()
-            NotificationLog.objects.create(
-                notification=notification,
-                log_type=NotificationLog.LOG_TYPE_READ,
-            )
-            count += 1
+        unread_qs = Notification.objects.filter(user=request.user, is_read=False)
+        notification_ids = list(unread_qs.values_list("id", flat=True))
+        count = unread_qs.update(is_read=True, read_at=timezone.now())
+
+        if notification_ids:
+            NotificationLog.objects.bulk_create([
+                NotificationLog(
+                    notification_id=nid,
+                    log_type=NotificationLog.LOG_TYPE_READ,
+                )
+                for nid in notification_ids
+            ])
 
         return Response(
             {

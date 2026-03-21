@@ -134,3 +134,22 @@ class ScanReengagementTaskTests(TestCase):
 
         self.assertIsInstance(result, dict)
         self.assertGreaterEqual(result["notified"], 2)
+
+    def test_reengagement_not_sent_twice_within_7_days(self):
+        """Running scan twice in a row should not create duplicate notifications."""
+        student, _ = self._make_student(
+            "cooldown@notif-tasks.com",
+            last_accessed_days_ago=8,
+            progress=40,
+        )
+
+        from apps.notifications.tasks import scan_reengagement
+
+        scan_reengagement()
+        scan_reengagement()
+
+        count = Notification.objects.filter(
+            user=student,
+            subject__startswith="Continue your learning",
+        ).count()
+        self.assertEqual(count, 1, "Re-engagement should only be sent once within 7 days")

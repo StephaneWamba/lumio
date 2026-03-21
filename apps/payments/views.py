@@ -4,6 +4,7 @@ import uuid
 from decimal import Decimal
 
 import structlog
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -123,8 +124,8 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         except Exception:
             pass
 
-        # Reserve transaction_id early for idempotency key
-        idempotency_key = f"pi-{request.user.id}-{course.id}-{uuid.uuid4().hex[:8]}"
+        # Deterministic idempotency key: same user+course always yields same key
+        idempotency_key = f"pi-{request.user.id}-{course.id}"
 
         intent = stripe_service.create_payment_intent(
             amount_decimal=amount,
@@ -269,42 +270,43 @@ class StripeWebhookView(APIView):
             logger.warning("stripe_webhook_no_payment_id", intent_id=intent.get("id"))
             return
 
-        try:
-            payment = Payment.objects.get(id=payment_id)
-        except Payment.DoesNotExist:
-            logger.warning("stripe_webhook_payment_not_found", payment_id=payment_id)
-            return
+        with transaction.atomic():
+            try:
+                payment = Payment.objects.select_for_update().get(id=payment_id)
+            except Payment.DoesNotExist:
+                logger.warning("stripe_webhook_payment_not_found", payment_id=payment_id)
+                return
 
-        # Idempotent
-        if payment.status == Payment.STATUS_COMPLETED:
-            return
+            # Idempotent
+            if payment.status == Payment.STATUS_COMPLETED:
+                return
 
-        payment.status = Payment.STATUS_COMPLETED
-        payment.completed_at = timezone.now()
-        payment.save(update_fields=["status", "completed_at"])
+            payment.status = Payment.STATUS_COMPLETED
+            payment.completed_at = timezone.now()
+            payment.save(update_fields=["status", "completed_at"])
 
-        # Create invoice
-        invoice_number = (
-            f"INV-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-        )
-        Invoice.objects.get_or_create(
-            payment=payment,
-            defaults={
-                "invoice_number": invoice_number,
-                "status": Invoice.STATUS_PAID,
-                "subtotal": payment.amount,
-                "tax_amount": Decimal("0.00"),
-                "total_amount": payment.amount,
-                "issued_date": timezone.now().date(),
-                "paid_date": timezone.now().date(),
-            },
-        )
+            # Create invoice
+            invoice_number = (
+                f"INV-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+            )
+            Invoice.objects.get_or_create(
+                payment=payment,
+                defaults={
+                    "invoice_number": invoice_number,
+                    "status": Invoice.STATUS_PAID,
+                    "subtotal": payment.amount,
+                    "tax_amount": Decimal("0.00"),
+                    "total_amount": payment.amount,
+                    "issued_date": timezone.now().date(),
+                    "paid_date": timezone.now().date(),
+                },
+            )
 
-        # Auto-enroll student
-        Enrollment.objects.get_or_create(
-            student=payment.user,
-            course=payment.course,
-        )
+            # Auto-enroll student
+            Enrollment.objects.get_or_create(
+                student=payment.user,
+                course=payment.course,
+            )
 
         PaymentLog.objects.create(
             payment=payment,

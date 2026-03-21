@@ -27,8 +27,20 @@ def scan_reengagement():
         progress_percentage__lt=100,
     ).select_related("student", "course")
 
+    cooldown_cutoff = timezone.now() - timedelta(days=7)
+
     notified = 0
     for enrollment in inactive:
+        # 7-day cooldown: skip if we already sent a re-engagement notification recently
+        already_notified = Notification.objects.filter(
+            user=enrollment.student,
+            notification_type=Notification.NOTIFICATION_TYPE_INFO,
+            message__contains=enrollment.course.title,
+            created_at__gte=cooldown_cutoff,
+        ).exists()
+        if already_notified:
+            continue
+
         notification = Notification.objects.create(
             user=enrollment.student,
             subject=f"Continue your learning in {enrollment.course.title}",
@@ -101,11 +113,12 @@ def send_enrollment_welcome(enrollment_id: int) -> None:
         logger.warning("enrollment_welcome_enrollment_not_found", enrollment_id=enrollment_id)
         return {"sent": False}
 
-    # Idempotency check — don't send twice
+    # Idempotency check — keyed on enrollment ID embedded in message
+    idempotency_marker = f"enrollment:{enrollment.id}"
     already_sent = Notification.objects.filter(
         user=enrollment.student,
-        subject__startswith="Welcome to",
-        message__contains=enrollment.course.title,
+        notification_type=Notification.NOTIFICATION_TYPE_SUCCESS,
+        message__contains=idempotency_marker,
     ).exists()
     if already_sent:
         return {"sent": False, "reason": "already_sent"}
@@ -115,7 +128,7 @@ def send_enrollment_welcome(enrollment_id: int) -> None:
         subject=f"Welcome to {enrollment.course.title}!",
         message=(
             f"You've successfully enrolled in {enrollment.course.title}. "
-            f"Start learning at your own pace!"
+            f"Start learning at your own pace! [{idempotency_marker}]"
         ),
         notification_type=Notification.NOTIFICATION_TYPE_SUCCESS,
     )

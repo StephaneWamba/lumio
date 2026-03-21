@@ -22,7 +22,10 @@ def check_completions():
     completed = Enrollment.objects.filter(
         progress_percentage=100,
         earned_certificate__isnull=True,
-    ).select_related("student", "course")
+    ).select_related("student", "course").prefetch_related(
+        "course__certificate_award",
+        "course__certificate_template",
+    )
 
     checked = 0
     issued = 0

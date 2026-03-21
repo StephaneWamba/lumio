@@ -177,7 +177,7 @@ class NotificationTests(TestCase):
         self.assertEqual(response.data["count"], 1)
 
     def test_mark_as_read(self):
-        """Test marking notification as read"""
+        """Test marking notification as read persists to DB"""
         notification = Notification.objects.create(
             user=self.user,
             subject="Test",
@@ -188,6 +188,8 @@ class NotificationTests(TestCase):
         response = self.client.post(reverse("notification-mark-as-read", args=[notification.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["is_read"])
+        notification.refresh_from_db()
+        self.assertTrue(notification.is_read)
 
     def test_mark_all_as_read(self):
         """Test marking all notifications as read"""

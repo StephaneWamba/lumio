@@ -4,6 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.db import transaction
 from django.utils import timezone
 import structlog
 
@@ -218,21 +219,25 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         lesson_progress.completed_at = timezone.now()
         lesson_progress.save()
 
-        # Recalculate course progress percentage
-        total_lessons = Lesson.objects.filter(section__course=enrollment.course).count()
-        completed_lessons = LessonProgress.objects.filter(
-            enrollment=enrollment,
-            completed_at__isnull=False,
-        ).count()
+        # Recalculate course progress percentage atomically
+        with transaction.atomic():
+            enrollment = enrollment.__class__.objects.select_for_update().get(pk=enrollment.pk)
+            total_lessons = Lesson.objects.filter(section__course=enrollment.course).count()
+            completed_lessons = LessonProgress.objects.filter(
+                enrollment=enrollment,
+                completed_at__isnull=False,
+            ).count()
 
-        if total_lessons > 0:
-            progress = (completed_lessons / total_lessons) * 100
-            enrollment.progress_percentage = progress
+            if total_lessons > 0:
+                progress = (completed_lessons / total_lessons) * 100
+                update_fields = ["progress_percentage"]
+                enrollment.progress_percentage = progress
 
-            if progress == 100:
-                enrollment.completed_at = timezone.now()
+                if progress == 100 and enrollment.completed_at is None:
+                    enrollment.completed_at = timezone.now()
+                    update_fields.append("completed_at")
 
-            enrollment.save()
+                enrollment.save(update_fields=update_fields)
 
         logger.info(
             "lesson_completed",
