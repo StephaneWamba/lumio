@@ -256,9 +256,29 @@ jobs:
               echo "Service is stable."
               exit 0
             fi
+            if [ "$STATUS" = "FAILED" ]; then
+              echo "Deployment FAILED (circuit breaker tripped). Fetching stopped task reason..."
+              STOPPED=$(aws ecs list-tasks --cluster lumio --desired-status STOPPED \
+                --region ${{ env.AWS_REGION }} --query 'taskArns[0]' --output text)
+              if [ "$STOPPED" != "None" ] && [ -n "$STOPPED" ]; then
+                aws ecs describe-tasks --cluster lumio --tasks "$STOPPED" \
+                  --region ${{ env.AWS_REGION }} \
+                  --query 'tasks[0].{stopCode:stopCode,stoppedReason:stoppedReason,containers:containers[*].{name:name,reason:reason,exitCode:exitCode,lastStatus:lastStatus}}'
+              fi
+              exit 1
+            fi
             sleep 15
           done
           echo "Timed out waiting for ECS service to stabilize."
+          # Print last stopped task for diagnosis
+          STOPPED=$(aws ecs list-tasks --cluster lumio --desired-status STOPPED \
+            --region ${{ env.AWS_REGION }} --query 'taskArns[0]' --output text)
+          if [ "$STOPPED" != "None" ] && [ -n "$STOPPED" ]; then
+            echo "Last stopped task details:"
+            aws ecs describe-tasks --cluster lumio --tasks "$STOPPED" \
+              --region ${{ env.AWS_REGION }} \
+              --query 'tasks[0].{stopCode:stopCode,stoppedReason:stoppedReason,containers:containers[*].{name:name,reason:reason,exitCode:exitCode}}'
+          fi
           exit 1
 
       - name: Deployment summary

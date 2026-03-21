@@ -790,6 +790,13 @@ resource "aws_ecs_service" "app" {
   deployment_minimum_healthy_percent = 50
   deployment_maximum_percent         = 200
 
+  # Roll back automatically if new tasks fail health checks.
+  # Without this, ECS retries indefinitely and rolloutState never becomes FAILED.
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
   depends_on = [
     aws_lb_listener.http,
     aws_iam_role_policy_attachment.ecs_execution_policy,
