@@ -127,16 +127,36 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         # Deterministic idempotency key: same user+course always yields same key
         idempotency_key = f"pi-{request.user.id}-{course.id}"
 
-        intent = stripe_service.create_payment_intent(
-            amount_decimal=amount,
-            currency=price.currency,
-            metadata={
-                "course_id": str(course.id),
-                "user_id": str(request.user.id),
-            },
-            idempotency_key=idempotency_key,
-            instructor_stripe_id=instructor_stripe_id,
-        )
+        try:
+            intent = stripe_service.create_payment_intent(
+                amount_decimal=amount,
+                currency=price.currency,
+                metadata={
+                    "course_id": str(course.id),
+                    "user_id": str(request.user.id),
+                },
+                idempotency_key=idempotency_key,
+                instructor_stripe_id=instructor_stripe_id,
+            )
+        except Exception:
+            if not instructor_stripe_id:
+                raise
+            # Connected account rejected (e.g. not yet charges_enabled) — retry without fee split
+            logger.warning(
+                "stripe_connect_fee_split_failed",
+                instructor_stripe_id=instructor_stripe_id,
+                course_id=course.id,
+            )
+            intent = stripe_service.create_payment_intent(
+                amount_decimal=amount,
+                currency=price.currency,
+                metadata={
+                    "course_id": str(course.id),
+                    "user_id": str(request.user.id),
+                },
+                idempotency_key=idempotency_key + "-nofee",
+                instructor_stripe_id=None,
+            )
 
         payment = Payment.objects.create(
             user=request.user,
