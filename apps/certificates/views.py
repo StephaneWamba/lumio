@@ -179,14 +179,21 @@ class EarnedCertificateViewSet(viewsets.ReadOnlyModelViewSet):
             completion_date=completion_date,
         )
 
-        # Render PDF and upload to S3
-        pdf_s3_key = pdf_service.render_and_upload(
-            certificate_number=certificate_number,
-            student_name=enrollment.student.name,
-            course_title=enrollment.course.title,
-            completion_date=completion_date,
-            template=template,
-        )
+        # Render PDF and upload to S3 (best-effort — don't block issuance if PDF fails)
+        pdf_s3_key = None
+        try:
+            pdf_s3_key = pdf_service.render_and_upload(
+                certificate_number=certificate_number,
+                student_name=enrollment.student.name,
+                course_title=enrollment.course.title,
+                completion_date=completion_date,
+                template=template,
+            )
+        except Exception:
+            logger.warning(
+                "certificate_pdf_failed",
+                certificate_number=certificate_number,
+            )
 
         certificate = EarnedCertificate.objects.create(
             enrollment=enrollment,
