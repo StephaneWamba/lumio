@@ -147,7 +147,8 @@ class SectionTests(TestCase):
         """Test listing sections returns correct section data"""
         response = self.client.get(reverse("course-sections", args=[self.course.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        titles = [s["title"] for s in response.data]
+        items = response.data if isinstance(response.data, list) else response.data.get("results", response.data)
+        titles = [s["title"] for s in items]
         self.assertIn(self.section.title, titles)
 
     def test_create_section(self):
@@ -216,7 +217,8 @@ class LessonTests(TestCase):
             reverse("section-lessons", args=[self.course.id, self.section.id])
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        titles = [l["title"] for l in response.data]
+        items = response.data if isinstance(response.data, list) else response.data.get("results", response.data)
+        titles = [l["title"] for l in items]
         self.assertIn(self.lesson.title, titles)
 
     def test_create_lesson(self):

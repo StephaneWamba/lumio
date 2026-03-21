@@ -408,4 +408,4 @@ class EmailVerificationTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.data)
         user.refresh_from_db()
-        self.assertTrue(user.is_email_verified)
+        self.assertTrue(user.email_verified)

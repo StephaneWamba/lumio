@@ -317,11 +317,14 @@ class StripeRefundTests(TestCase):
         payment = Payment.objects.get(transaction_id=intent_id)
 
         # 2. Confirm with test card (pm_card_visa = always succeeds, no 3DS)
-        stripe.PaymentIntent.confirm(
-            intent_id,
-            payment_method="pm_card_visa",
-            return_url="https://lumio.io/return",
-        )
+        # Idempotent: skip if this PaymentIntent already succeeded (deterministic key reuse)
+        pi = stripe.PaymentIntent.retrieve(intent_id)
+        if pi.status != "succeeded":
+            stripe.PaymentIntent.confirm(
+                intent_id,
+                payment_method="pm_card_visa",
+                return_url="https://lumio.io/return",
+            )
 
         # 3. Simulate webhook marking payment complete
         obj = {"id": intent_id, "metadata": {"payment_id": str(payment.id)}}
