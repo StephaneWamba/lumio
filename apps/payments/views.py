@@ -245,6 +245,8 @@ class StripeWebhookView(APIView):
             self._handle_payment_failed(obj)
         elif event_type == "charge.refunded":
             self._handle_charge_refunded(obj)
+        elif event_type == "account.updated":
+            self._handle_account_updated(obj)
 
         return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
@@ -326,6 +328,19 @@ class StripeWebhookView(APIView):
             details=payment.processor_response,
         )
         logger.info("payment_failed", payment_id=payment.id)
+
+    def _handle_account_updated(self, account):
+        """Set stripe_onboarded=True when Stripe confirms the Express account completed setup."""
+        from apps.users.models import InstructorProfile
+
+        account_id = account.get("id")
+        if not account_id or not account.get("details_submitted"):
+            return
+        updated = InstructorProfile.objects.filter(stripe_account_id=account_id).update(
+            stripe_onboarded=True
+        )
+        if updated:
+            logger.info("instructor_stripe_onboarded", stripe_account_id=account_id)
 
     def _handle_charge_refunded(self, charge):
         intent_id = charge.get("payment_intent")

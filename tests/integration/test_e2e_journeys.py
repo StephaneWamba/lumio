@@ -129,7 +129,7 @@ def test_full_learning_journey(student_client, published_course):
     assert r.status_code == 200
     enrollment_detail = r.json()
     progress_pct = enrollment_detail.get("progress_percentage")
-    assert progress_pct == 100, (
+    assert float(progress_pct) == 100.0, (
         f"Expected progress_percentage=100 after completing the only lesson, got {progress_pct}"
     )
 
@@ -630,8 +630,9 @@ def test_full_quiz_attempt_journey(
 
 def test_stripe_fee_split_with_connected_instructor(instructor_client, student_client):
     """
-    Journey: instructor onboards Stripe → course with price → student initiates payment →
-    verify application_fee_amount on the Stripe PI matches the platform share.
+    Journey: instructor onboards Stripe → simulate account.updated webhook to mark onboarded
+    → course with price → student initiates payment → verify application_fee_amount on the
+    Stripe PI matches the platform share.
 
     The fee split assertion is unconditional: if application_fee_amount is None on the
     Stripe PI, the instructor's Connect account is not wired up and the test fails.
@@ -640,18 +641,62 @@ def test_stripe_fee_split_with_connected_instructor(instructor_client, student_c
     import stripe
 
     stripe_secret = os.environ.get("STRIPE_SECRET_KEY")
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
     platform_pct = float(os.environ.get("STRIPE_PLATFORM_SHARE_PCT", "20"))
-    if not stripe_secret:
-        pytest.skip("STRIPE_SECRET_KEY not set")
+    if not stripe_secret or not webhook_secret:
+        pytest.skip("STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET not set")
     stripe.api_key = stripe_secret
 
-    # 1. Onboard instructor to Stripe Connect
+    # 1. Onboard instructor to Stripe Connect — creates the Express account
     r = instructor_client.post("/api/v1/auth/instructor-profiles/onboard_stripe/")
     assert r.status_code == 200, f"Stripe onboarding failed: {r.status_code} {r.text}"
     onboard_data = r.json()
     assert "onboarding_url" in onboard_data, f"Missing onboarding_url: {onboard_data}"
 
-    # 2. Create fresh course with a $50 price
+    # 2. Retrieve instructor's stripe_account_id via profile endpoint
+    profile_r = instructor_client.get("/api/v1/auth/instructor-profiles/my_profile/")
+    assert profile_r.status_code == 200, (
+        f"Failed to get instructor profile: {profile_r.status_code} {profile_r.text}"
+    )
+    stripe_account_id = profile_r.json().get("stripe_account_id")
+    assert stripe_account_id, (
+        "stripe_account_id not set on instructor profile after onboard_stripe"
+    )
+
+    # 3. Simulate Stripe's account.updated webhook (details_submitted=True) so that
+    #    stripe_onboarded is set to True in our DB — normally fired after OAuth completion.
+    acct_payload_dict = {
+        "id": f"evt_acct_{TEST_RUN_ID}",
+        "type": "account.updated",
+        "data": {
+            "object": {
+                "id": stripe_account_id,
+                "details_submitted": True,
+            }
+        },
+    }
+    acct_payload = json.dumps(acct_payload_dict).encode()
+    ts_acct = int(_time.time())
+    signed_acct = f"{ts_acct}.{acct_payload.decode()}"
+    sig_acct = hmac.new(
+        webhook_secret.encode(),
+        signed_acct.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    acct_webhook_r = requests.post(
+        api("/api/v1/payments/webhook/"),
+        data=acct_payload,
+        headers={
+            "Content-Type": "application/json",
+            "Stripe-Signature": f"t={ts_acct},v1={sig_acct}",
+        },
+        timeout=30,
+    )
+    assert acct_webhook_r.status_code == 200, (
+        f"account.updated webhook failed: {acct_webhook_r.status_code} {acct_webhook_r.text}"
+    )
+
+    # 4. Create fresh course with a $50 price
     r = instructor_client.post(
         "/api/v1/courses/courses/",
         json={
@@ -678,7 +723,7 @@ def test_stripe_fee_split_with_connected_instructor(instructor_client, student_c
     )
     assert r.status_code == 201, f"Price creation failed: {r.status_code} {r.text}"
 
-    # 3. Initiate payment as student
+    # 5. Initiate payment as student
     r = student_client.post(
         "/api/v1/payments/payments/initiate_payment/",
         json={"course_id": course_id},
@@ -687,7 +732,7 @@ def test_stripe_fee_split_with_connected_instructor(instructor_client, student_c
     intent_id = r.json()["transaction_id"]
     assert intent_id.startswith("pi_"), f"Expected pi_..., got: {intent_id}"
 
-    # 4. Verify the fee split on the Stripe PI — this must be present
+    # 6. Verify the fee split on the Stripe PI — this must be present
     intent = stripe.PaymentIntent.retrieve(intent_id)
     assert intent.amount == 5000, f"Expected 5000 cents ($50), got: {intent.amount}"
 
