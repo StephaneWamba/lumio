@@ -3,7 +3,8 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.views import APIView
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 import uuid
@@ -210,3 +211,23 @@ class EarnedCertificateViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
         return certificate
+
+
+class CertificateVerifyView(APIView):
+    """Public endpoint — no auth required — to verify a certificate by number."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, certificate_number):
+        cert = get_object_or_404(
+            EarnedCertificate,
+            certificate_number=certificate_number,
+            is_revoked=False,
+        )
+        return Response({
+            "certificate_number": cert.certificate_number,
+            "student_name": cert.enrollment.student.name,
+            "course_title": cert.enrollment.course.title,
+            "issued_at": cert.created_at,
+            "is_valid": True,
+        })

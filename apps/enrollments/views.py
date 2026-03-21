@@ -220,24 +220,36 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         lesson_progress.save()
 
         # Recalculate course progress percentage atomically
+        # Also stamp last_accessed_at — student may have skipped mark_lesson_viewed
         with transaction.atomic():
             enrollment = enrollment.__class__.objects.select_for_update().get(pk=enrollment.pk)
             total_lessons = Lesson.objects.filter(section__course=enrollment.course).count()
-            completed_lessons = LessonProgress.objects.filter(
-                enrollment=enrollment,
-                completed_at__isnull=False,
-            ).count()
+
+            # Derive progress from the immutable ProgressEvent log (distinct lessons completed)
+            completed_lesson_ids = (
+                ProgressEvent.objects.filter(
+                    student=enrollment.student,
+                    course=enrollment.course,
+                    event_type=ProgressEvent.EVENT_LESSON_COMPLETED,
+                )
+                .values_list("lesson_id", flat=True)
+                .distinct()
+            )
+            completed_lessons = completed_lesson_ids.count()
+
+            update_fields = ["last_accessed_at"]
+            enrollment.last_accessed_at = timezone.now()
 
             if total_lessons > 0:
                 progress = (completed_lessons / total_lessons) * 100
-                update_fields = ["progress_percentage"]
                 enrollment.progress_percentage = progress
+                update_fields.append("progress_percentage")
 
                 if progress == 100 and enrollment.completed_at is None:
                     enrollment.completed_at = timezone.now()
                     update_fields.append("completed_at")
 
-                enrollment.save(update_fields=update_fields)
+            enrollment.save(update_fields=update_fields)
 
         logger.info(
             "lesson_completed",

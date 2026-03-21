@@ -292,6 +292,10 @@ class QuizAttemptViewSet(viewsets.ModelViewSet):
             )
         lesson_progress.save()
 
+        # Stamp last_accessed_at on enrollment — quiz submission counts as activity
+        enrollment.last_accessed_at = timezone.now()
+        enrollment.save(update_fields=["last_accessed_at"])
+
         # Compute per-concept scores and update enrollment concept profile
         enrollment = attempt.lesson_progress.enrollment
         concept_scores = adaptive_engine.compute_concept_scores(attempt)

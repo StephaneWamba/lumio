@@ -394,6 +394,39 @@ class EarnedCertificateTests(TestCase):
                 rendered_content=_render_content(self.template, enrollment2),
             )
 
+    def test_public_verify_endpoint_returns_certificate_info(self):
+        """Unauthenticated GET /verify/{number}/ returns student name and course title."""
+        cert_number = _make_certificate_number()
+        EarnedCertificate.objects.create(
+            enrollment=self.enrollment,
+            template=self.template,
+            certificate_number=cert_number,
+            rendered_content=_render_content(self.template, self.enrollment),
+        )
+        # No authentication
+        anon_client = APIClient()
+        response = anon_client.get(reverse("certificate-verify", args=[cert_number]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["certificate_number"], cert_number)
+        self.assertIn(self.student.name, response.data["student_name"])
+        self.assertIn(self.course.title, response.data["course_title"])
+        self.assertTrue(response.data["is_valid"])
+
+    def test_public_verify_revoked_certificate_returns_404(self):
+        """Revoked certificate must not be publicly verifiable."""
+        cert_number = _make_certificate_number()
+        EarnedCertificate.objects.create(
+            enrollment=self.enrollment,
+            template=self.template,
+            certificate_number=cert_number,
+            rendered_content=_render_content(self.template, self.enrollment),
+            is_revoked=True,
+            revoked_at=timezone.now(),
+        )
+        anon_client = APIClient()
+        response = anon_client.get(reverse("certificate-verify", args=[cert_number]))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_rendered_content_contains_student_name_and_course(self):
         """Certificate rendered_content must include student name and course title."""
         cert = EarnedCertificate.objects.create(

@@ -6,6 +6,7 @@ from .views import (
     CertificateTemplateViewSet,
     CertificateAwardViewSet,
     EarnedCertificateViewSet,
+    CertificateVerifyView,
 )
 
 router = DefaultRouter()
@@ -15,4 +16,5 @@ router.register(r"earned", EarnedCertificateViewSet, basename="earned-certificat
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("verify/<str:certificate_number>/", CertificateVerifyView.as_view(), name="certificate-verify"),
 ]
