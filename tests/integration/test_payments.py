@@ -183,15 +183,18 @@ def test_list_invoices_unauthenticated():
 
 
 def test_stripe_connect_onboarding_instructor(instructor_client):
-    """POST /api/v1/auth/instructor-profiles/onboard_stripe/ as instructor returns 200."""
+    """POST /api/v1/auth/instructor-profiles/onboard_stripe/ as instructor returns 200
+    with onboarding_url pointing to Stripe Connect."""
     resp = instructor_client.post("/api/v1/auth/instructor-profiles/onboard_stripe/")
-    # The view returns 200 with a placeholder message
     assert resp.status_code == 200, (
         f"Stripe onboarding returned {resp.status_code}: {resp.text}"
     )
     data = resp.json()
-    assert "message" in data, (
-        f"Expected 'message' in Stripe onboarding response: {data}"
+    assert "onboarding_url" in data, (
+        f"Expected 'onboarding_url' in Stripe onboarding response, got: {data}"
+    )
+    assert data["onboarding_url"].startswith("https://connect.stripe.com/"), (
+        f"Expected Stripe Connect URL, got: {data['onboarding_url']}"
     )
 
 
