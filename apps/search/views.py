@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Avg, Q
 from django.utils import timezone
 from datetime import timedelta
@@ -21,7 +22,7 @@ class SearchViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     serializer_class = SearchIndexSerializer
     filterset_class = SearchFilterSet
-    filter_backends = [drf_filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, drf_filters.OrderingFilter]
 
     def get_queryset(self):
         """Get published search results, filtered by user permissions"""
