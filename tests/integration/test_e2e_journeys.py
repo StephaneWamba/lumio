@@ -26,7 +26,8 @@ pytestmark = pytest.mark.integration
 # ---------------------------------------------------------------------------
 
 _POLL_INTERVAL = 5   # seconds between status checks
-_VIDEO_TIMEOUT = 120  # seconds to wait for FFmpeg to reach a terminal state
+_VIDEO_TIMEOUT = 300  # seconds to wait for FFmpeg to reach a terminal state
+# 300s covers 3 retries × 60s default_retry_delay when FFmpeg fails on invalid input
 
 
 def _poll_video_status(client: AuthedClient, video_id: int) -> dict:
