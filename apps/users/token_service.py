@@ -27,6 +27,9 @@ def validate_token(purpose: str, token: str) -> int | None:
 
 
 def consume_token(purpose: str, token: str) -> int | None:
-    """Validate and atomically delete token. Returns user_id or None."""
+    """Validate and delete token. Returns user_id or None."""
     key = f"{_PREFIX}:{purpose}:{token}"
-    return cache.get_and_delete(key)
+    token_data = cache.get(key)
+    if token_data is not None:
+        cache.delete(key)
+    return token_data

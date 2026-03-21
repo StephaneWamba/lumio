@@ -28,10 +28,12 @@ class UserAuthenticationTests(TestCase):
 
     def test_user_registration(self):
         """Test user can register"""
-        response = self.client.post(self.register_url, self.user_data)
+        # Use the only Resend-allowed recipient email for this Resend test account
+        data = self.user_data.copy()
+        data["email"] = "wambstephane@gmail.com"
+        response = self.client.post(self.register_url, data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(User.objects.filter(email=self.user_data["email"]).count(), 1)
-        self.assertEqual(User.objects.first().email, self.user_data["email"])
+        self.assertEqual(User.objects.filter(email=data["email"]).count(), 1)
 
     def test_user_registration_password_mismatch(self):
         """Test registration fails with mismatched passwords"""

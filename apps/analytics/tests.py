@@ -73,7 +73,7 @@ class CourseAnalyticsTests(TestCase):
         response = self.client.get(reverse("course-analytics-detail", args=[self.analytics.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["total_enrollments"], self.analytics.total_enrollments)
-        self.assertEqual(response.data["course"], self.course.id)
+        self.assertEqual(response.data["course"]["id"], self.course.id)
 
     def test_recalculate_analytics(self):
         """Test recalculating course analytics"""

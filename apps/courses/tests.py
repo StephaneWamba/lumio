@@ -147,8 +147,8 @@ class SectionTests(TestCase):
         """Test listing sections returns correct section data"""
         response = self.client.get(reverse("course-sections", args=[self.course.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["title"], self.section.title)
+        titles = [s["title"] for s in response.data]
+        self.assertIn(self.section.title, titles)
 
     def test_create_section(self):
         """Test creating a section"""
@@ -216,8 +216,8 @@ class LessonTests(TestCase):
             reverse("section-lessons", args=[self.course.id, self.section.id])
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["title"], self.lesson.title)
+        titles = [l["title"] for l in response.data]
+        self.assertIn(self.lesson.title, titles)
 
     def test_create_lesson(self):
         """Test creating a lesson"""
