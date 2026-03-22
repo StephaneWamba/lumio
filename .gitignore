@@ -38,11 +38,15 @@ db.sqlite3
 *.swo
 *~
 .DS_Store
+Thumbs.db
 
-# Environment
+# Environment & secrets
 .env
 .env.local
 .env.*.local
+.env.tokens
+*.pem
+*.key
 
 # Testing
 .pytest_cache/
@@ -57,6 +61,7 @@ coverage.xml
 terraform.tfstate
 terraform.tfstate.*
 *.tfplan
+terraform.tfvars
 crash.log
 crash.*.log
 override.tf
@@ -64,14 +69,27 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
-# Node (for frontend)
+# Node / Frontend
 node_modules/
 .next/
 dist/
 build/
+*.tsbuildinfo
 
-# Others
-.env*.local
+# uv / pip
+uv.lock
+pip-wheel-metadata/
+
+# OS
+.DS_Store
+ehthumbs.db
+Desktop.ini
+
+# Docs / plans (internal only)
+docs/plans/
+.claude/
+
+# Misc
 *.bak
 tmp/
-.env.tokens
+*.tmp
