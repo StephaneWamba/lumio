@@ -77,81 +77,14 @@ graph TB
     App -->|Errors| Sentry
 ```
 
-### Video Pipeline
+---
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API as Django API
-    participant S3R as S3 (raw)
-    participant Queue as Redis Queue
-    participant FFmpeg as FFmpeg Worker
-    participant S3P as S3 (processed)
-    participant CF as CloudFront
+## Documentation
 
-    Client->>API: POST /media/initiate-upload/
-    API-->>Client: presigned PUT URL
-    Client->>S3R: PUT video (direct upload)
-    Client->>API: POST /media/complete-upload/
-    API->>Queue: enqueue transcode_video task
-    Queue->>FFmpeg: pick up task
-    FFmpeg->>S3R: get_object() stream 8MB chunks
-    FFmpeg->>FFmpeg: ffmpeg → 1080p/720p/480p HLS
-    FFmpeg->>S3P: upload segments + playlists
-    FFmpeg->>API: update VideoFile.status = ready
-    Client->>API: GET /media/{id}/playback-url/
-    API-->>Client: signed CloudFront URL (5min TTL)
-    Client->>CF: stream HLS
-```
-
-### Adaptive Quiz Engine
-
-```mermaid
-flowchart TD
-    A[Student starts quiz attempt N] --> B[Load EnrollmentConceptProfile]
-    B --> C{Has prior attempts?}
-    C -->|No| D[Weight all questions equally]
-    C -->|Yes| E[Compute concept weights\navg_score < 70% → higher weight]
-    D --> F[seed = hash enrollment_id + attempt_N]
-    E --> F
-    F --> G[Weighted shuffle via seeded RNG]
-    G --> H[Student answers questions]
-    H --> I[Grade answers]
-    I --> J[Compute AttemptConceptScore per tag]
-    J --> K[Update EnrollmentConceptProfile\nrunning average]
-    K --> L{Passed?}
-    L -->|No| M[Surface weak concepts for review]
-    L -->|Yes| N[Emit quiz_passed ProgressEvent]
-    M --> A
-```
-
-### Drip Unlock (Cohort Scheduling)
-
-```mermaid
-flowchart LR
-    Beat["Celery Beat\n(hourly)"] --> Scanner["scan_and_release_drip\ntask"]
-    Scanner --> Q["SELECT cohorts WHERE\nstart_date + unlock_day <= now"]
-    Q --> Bulk["bulk_create LessonUnlock\n(ignore_conflicts)"]
-    Bulk --> Gate["Lesson access check\nconsults LessonUnlock"]
-```
-
-### Progress: Event Sourcing
-
-```mermaid
-flowchart TD
-    Events["ProgressEvent log\n(immutable append-only)"]
-    Events --> Derive["Derive progress %\n= completed_lessons / total_lessons"]
-    Derive --> Cache["Materialise into Redis\n(1h TTL)"]
-    Cache --> API["GET /enrollments/{id}/progress/"]
-
-    subgraph Events written by
-        LV["lesson_viewed"]
-        LC["lesson_completed"]
-        QS["quiz_submitted"]
-        QP["quiz_passed"]
-        CC["course_completed"]
-    end
-```
+- [docs/architecture.md](docs/architecture.md) — services, data stores, scheduled jobs, design decisions
+- [docs/video-pipeline.md](docs/video-pipeline.md) — upload flow, transcoding, playback, boto3 notes
+- [docs/adaptive-quiz.md](docs/adaptive-quiz.md) — concept weighting, deterministic RNG, tracking models
+- [docs/payments.md](docs/payments.md) — Stripe Connect, purchase flow, webhook handling
 
 ---
 
@@ -283,20 +216,3 @@ CELERY_BROKER_URL             # same as REDIS_URL
 FLOWER_BASIC_AUTH             # user:password
 ```
 
----
-
-## Key Design Decisions
-
-**Event-sourced progress** — `ProgressEvent` records are append-only. Progress percentage is derived from the log, never stored as a mutable counter. Handles duplicates, out-of-order events, and audits cleanly.
-
-**Periodic drip scanner** — Cohort content unlock runs as a single hourly Celery Beat task that bulk-creates `LessonUnlock` records. One task per scan instead of one task per student — scales to 10k+ enrollments without queue flooding.
-
-**Deterministic adaptive quiz** — Question selection is seeded with `hash(enrollment_id + attempt_number)`. Same student state always produces the same question order — reproducible, fair, auditable.
-
-**Frontend uploads directly to S3** — Django issues a presigned PUT URL and never proxies video bytes. Eliminates multi-GB request timeouts and bandwidth bottlenecks on the API tier.
-
-**Signed CloudFront URLs (5-min TTL)** — Students never receive a raw S3 URL. Every playback request goes through an enrollment check before a short-lived signed URL is issued.
-
-**Separate FFmpeg container** — The FFmpeg image is ~300MB and CPU-intensive. It runs as a dedicated ECS service (`lumio-ffmpeg`) consuming only the `transcoding` queue, scaling independently from the API workers.
-
-**PostgreSQL FTS over Elasticsearch** — A `tsvector` column with a GIN index covers full-text course search at this scale. One less infrastructure component to operate.

@@ -85,9 +85,10 @@ pip-wheel-metadata/
 ehthumbs.db
 Desktop.ini
 
-# Docs / plans (internal only)
+# Internal / tooling
 docs/plans/
 .claude/
+CLAUDE.md
 
 # Misc
 *.bak
